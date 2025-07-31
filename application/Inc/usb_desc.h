@@ -41,6 +41,8 @@
 #define __USB_DESC_H
 
 /* Includes ------------------------------------------------------------------*/
+#include <stdint.h>
+
 /* Exported types ------------------------------------------------------------*/
 /* Exported constants --------------------------------------------------------*/
 /* Exported macro ------------------------------------------------------------*/
@@ -63,7 +65,7 @@
 #define CustomHID_SIZ_REPORT_DESC             	96
 #define Composite_SIZ_STRING_LANGID             4
 #define Composite_SIZ_STRING_VENDOR             64
-#define Composite_SIZ_STRING_PRODUCT            50
+#define Composite_SIZ_STRING_PRODUCT            52
 #define Composite_SIZ_STRING_SERIAL             26
 
 #define STANDARD_ENDPOINT_DESC_SIZE             0x09
