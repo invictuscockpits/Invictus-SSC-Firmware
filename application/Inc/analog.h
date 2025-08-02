@@ -29,9 +29,9 @@
 #include "common_types.h"
 #include "periphery.h"
 
-#define FILTER_BUF_SIZE									20
-#define DEADBAND_BUF_SIZE								8
-#define DEADBAND_HOLD_VALUE							2000
+#define FILTER_BUF_SIZE									30
+#define DEADBAND_BUF_SIZE								16					//Freejoy default is 8.  Increased to 16 for strain gauges
+//#define DEADBAND_HOLD_VALUE							2000			//Possible legacy from previous versions of software, but I cannot find it used anywhere
 
 #define ADC_CONV_NUM										8
 
