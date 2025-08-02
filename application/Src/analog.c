@@ -26,6 +26,9 @@
 
 #include <string.h>
 #include <math.h>
+#include "stm32f10x_gpio.h"
+#include "stm32f10x_rcc.h"
+#include "stm32f10x.h"  
 #include "tle5011.h"
 #include "tle5012.h"
 #include "mcp320x.h"
@@ -37,6 +40,8 @@
 #include "buttons.h"
 #include "encoders.h"
 
+#define CENTER_LED_RANGE 125 //ADC Count deviation allowace for Centered Axis LEDs to be lit
+
 sensor_t sensors[MAX_AXIS_NUM];	
 uint16_t adc_data[MAX_AXIS_NUM];
 uint16_t tmp_adc_data[MAX_AXIS_NUM];
@@ -47,13 +52,13 @@ analog_data_t raw_axis_data[MAX_AXIS_NUM];
 analog_data_t out_axis_data[MAX_AXIS_NUM];
 
 
-analog_data_t FILTER_LEVEL_1_COEF[FILTER_BUF_SIZE] = {40, 30, 15, 10, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+analog_data_t FILTER_LEVEL_1_COEF[FILTER_BUF_SIZE] = {40, 30, 15, 10, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }; // coefficients (sum <= 100) to prevent overflow
 analog_data_t FILTER_LEVEL_2_COEF[FILTER_BUF_SIZE] = {30, 20, 10, 10, 10, 6, 6, 4, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 analog_data_t FILTER_LEVEL_3_COEF[FILTER_BUF_SIZE] = {25, 20, 10, 10, 8, 6, 6, 4, 2, 2, 2, 2, 2, 1, 0, 0, 0, 0, 0, 0};
 analog_data_t FILTER_LEVEL_4_COEF[FILTER_BUF_SIZE] = {20, 15, 10, 8, 8, 6, 6, 6, 4, 2, 2, 2, 2, 2, 2, 2, 2, 1, 0, 0};
-analog_data_t FILTER_LEVEL_5_COEF[FILTER_BUF_SIZE] = {15, 13, 11, 10, 10, 9, 7, 4, 3, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1};
-analog_data_t FILTER_LEVEL_6_COEF[FILTER_BUF_SIZE] = {12, 10, 8, 8, 8, 7, 7, 6, 6, 5, 4, 4, 3, 3, 2, 2, 2, 1, 1, 1};
-analog_data_t FILTER_LEVEL_7_COEF[FILTER_BUF_SIZE] = {8, 8, 7, 7, 7, 6, 6, 6, 6, 6, 5, 5, 5, 5, 5, 3, 2, 1, 1, 1};
+analog_data_t FILTER_LEVEL_5_COEF[FILTER_BUF_SIZE] = {20, 15, 12, 10, 8, 7, 6, 5, 4, 3, 3, 2, 2, 1, 1, 1, 0, 0, 0, 0}; 
+analog_data_t FILTER_LEVEL_6_COEF[FILTER_BUF_SIZE] = {18, 14, 12, 10, 8, 7, 6, 5, 5, 4, 3, 3, 2, 1, 1, 1, 0, 0, 0, 0}; 
+analog_data_t FILTER_LEVEL_7_COEF[FILTER_BUF_SIZE] = {16, 14, 12, 10, 8, 7, 6, 5, 5, 4, 4, 3, 2, 2, 1, 1, 0, 0, 0, 0}; 
 
 analog_data_t filter_buffer[MAX_AXIS_NUM][FILTER_BUF_SIZE];
 analog_data_t deadband_buffer[MAX_AXIS_NUM][DEADBAND_BUF_SIZE];
@@ -143,8 +148,8 @@ static int32_t map3(	int32_t x,
 	int32_t dead_zone_left;
 	
 	tmp = x;
-	dead_zone_right = ((in_max - in_center)*deadband_size)>>10;
-	dead_zone_left = ((in_center - in_min)*deadband_size)>>10;
+	dead_zone_right = ((in_max - in_center)*(deadband_size))>>8; //Adjusted bit shift from >>10 to >>8, which results in 5x larger deadband on raw value.  GUI setting of 15 now
+	dead_zone_left = ((in_center - in_min)*deadband_size)>>8;			// covers a 300 ADC count window.  Probably overkill, but wanted the headroom for the older VFTs
 	
 	if (tmp < in_min)	return out_min;
 	if (tmp > in_max)	return out_max; 
@@ -301,6 +306,12 @@ analog_data_t Filter (analog_data_t value, analog_data_t * filter_buf, filter_t 
 	*	@param	deadband_buf:	Pointer to deadband data buffer
 	* @param	deadband_size: Deadband width
   * @retval Is holding?
+  * @notes 	This function checks if the last 16 [DEADBAND
+	*					_BUFF_SIZE] input values have been stable 
+	*					within a small range (determined 
+	*					by deadband size). If so, it considers the input 
+	*					to be "holding still." If not, it's moving or jittering.
+	*					DEADBAND_BUF_SIZE set in Common_defines.h
   */
 uint8_t IsDynamicDeadbandHolding (analog_data_t value, analog_data_t * deadband_buf, uint8_t deadband_size)
 {
@@ -674,8 +685,30 @@ void AxesInit (dev_config_t * p_dev_config)
 		ADC_StartCalibration(ADC1);
 		/* Check the end of ADC1 calibration */
 		while(ADC_GetCalibrationStatus(ADC1));
+		
+
+// Centering indicator LED setup: PA8 and PB0
+RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOB, ENABLE);
+
+GPIO_InitTypeDef gpio;
+gpio.GPIO_Mode = GPIO_Mode_Out_PP;
+gpio.GPIO_Speed = GPIO_Speed_2MHz;
+
+// Initialize PA8 (X-Axis Indicator)
+gpio.GPIO_Pin = GPIO_Pin_8;
+GPIO_Init(GPIOA, &gpio);
+
+// Initialize PB0 (Y Axis Indicator)
+gpio.GPIO_Pin = GPIO_Pin_0;
+GPIO_Init(GPIOB, &gpio);
+
+// Turn both LEDs off initially
+GPIO_ResetBits(GPIOA, GPIO_Pin_8);
+GPIO_ResetBits(GPIOB, GPIO_Pin_0);
 	}
 }
+
+
 
 /**
   * @brief  ADC conversion processing routine
@@ -1180,21 +1213,21 @@ void AxesProcess (dev_config_t * p_dev_config)
 			}
 
 			// Centering
-			if (cent_button_num > 0)
+		if (cent_button_num > 0)
+		{
+			if ((cent_button_num & 0x01) && axis_buttons[i][0].current_state)
 			{
-				if ((cent_button_num & 0x01) && axis_buttons[i][0].current_state)
-				{
 					axis_trim_value[i] = -tmp[i];
-				}
-				else if ((cent_button_num & 0x02) && axis_buttons[i][1].current_state)
-				{
-					axis_trim_value[i] = -tmp[i];
-				}
-				else if ((cent_button_num & 0x04) && axis_buttons[i][2].current_state)
-				{
-					axis_trim_value[i] = -tmp[i];
-				}
 			}
+			else if ((cent_button_num & 0x02) && axis_buttons[i][1].current_state)
+			{
+				axis_trim_value[i] = -tmp[i];
+			}
+			else if ((cent_button_num & 0x04) && axis_buttons[i][2].current_state)
+			{
+				axis_trim_value[i] = -tmp[i];
+			}
+		}
 			
 			if (tmp[i] + axis_trim_value[i] > AXIS_MAX_VALUE) 
 			{
@@ -1212,7 +1245,28 @@ void AxesProcess (dev_config_t * p_dev_config)
 			}
     }		
 	} 
-	
+			//Centered Axis Indicators
+			// PA8 for X-axis (axis 0)
+			if (IsDynamicDeadbandHolding(scaled_axis_data[0], deadband_buffer[0], p_dev_config->axis_config[0].deadband_size) &&
+			iabs(scaled_axis_data[0] - AXIS_CENTER_VALUE) < CENTER_LED_RANGE) // 
+			{
+				GPIO_SetBits(GPIOA, GPIO_Pin_8);
+			}
+			else
+			{
+				GPIO_ResetBits(GPIOA, GPIO_Pin_8);
+			}
+
+			// PB0 for Y-axis (axis 1)
+			if (IsDynamicDeadbandHolding(scaled_axis_data[1], deadband_buffer[1], p_dev_config->axis_config[1].deadband_size) &&
+					iabs(scaled_axis_data[1] - AXIS_CENTER_VALUE) < CENTER_LED_RANGE)
+			{
+					GPIO_SetBits(GPIOB, GPIO_Pin_0);
+			}
+			else
+			{
+				GPIO_ResetBits(GPIOB, GPIO_Pin_0);
+			}
 	// Multi-axis process
 	for (uint8_t i=0; i<MAX_AXIS_NUM; i++)
 	{
