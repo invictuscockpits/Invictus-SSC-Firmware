@@ -27,7 +27,7 @@
 #include "spi.h"
 
 
-shift_reg_t shift_registers[4];
+shift_reg_t shift_registers[5]; //changed from 4 to 5 to allow Tianhang grip to function properly. May break shift register functionailty so change back if it does.
 
 /**
   * @brief  Initializate shift registers states at startup
