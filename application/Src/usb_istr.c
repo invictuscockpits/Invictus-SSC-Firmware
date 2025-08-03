@@ -98,7 +98,7 @@ void (*pEpInt_OUT[7])(void) =
 *******************************************************************************/
 void USB_Istr(void)
 {
-    uint32_t i=0;
+//    uint32_t i=0;  //Disable when turning off ESOF
  __IO uint32_t EP[8];
   
   wIstr = _GetISTR();
@@ -191,6 +191,9 @@ void USB_Istr(void)
   }
 #endif
   /*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*/
+	
+	
+
 #if (IMR_MSK & ISTR_ESOF)
   if (wIstr & ISTR_ESOF & wInterrupt_Mask)
   {
@@ -201,7 +204,11 @@ void USB_Istr(void)
     {
       /* increment ESOF counter */
       esof_counter ++;
+			
+			// Disabling to fix annoying joystick reset issue where it disconnects from the device intermittently and reconnects immediately.  
+			//Remove #IF 0 #ENDIF to reenable. 
       
+			#if 0
       /* test if we enter in ESOF more than 3 times with FSUSP =0 and RXDP =1=>> possible missing SUSP flag*/
       if ((esof_counter >3)&&((_GetCNTR()&CNTR_FSUSP)==0))
       {           
@@ -233,11 +240,15 @@ void USB_Istr(void)
       
         esof_counter = 0;
       }
+			#endif
     }
+			
     else
     {
         esof_counter = 0;
     }
+		
+	
     
     /* resume handling timing is made with ESOFs */
     Resume(RESUME_ESOF); /* request without change of the machine state */
