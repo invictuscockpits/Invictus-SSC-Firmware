@@ -1320,6 +1320,12 @@ void AxesProcess (dev_config_t * p_dev_config)
 		
     // setting technical axis data
     scaled_axis_data[i] = tmp[i];
+		
+		// Clamp near-zero to 0 to eliminate small residuals like -8
+		if (scaled_axis_data[i] > -10 && scaled_axis_data[i] < 10) {
+				scaled_axis_data[i] = 0;
+		}
+
     // setting output axis data
     if (p_dev_config->axis_config[i].out_enabled)  out_axis_data[i] = scaled_axis_data[i];
     else  out_axis_data[i] = 0;
