@@ -1057,7 +1057,7 @@ void AxesProcess (dev_config_t * p_dev_config)
 									 AXIS_MIN_VALUE,
 									 AXIS_CENTER_VALUE,
 									 AXIS_MAX_VALUE,
-									 0); 
+									 p_dev_config->axis_config[i].deadband_size);  // <-- restoring Deadband in addition to dynamic deadband
 		
 			if (iabs(tmp[i] - scaled_axis_data[i]) < 3*3*p_dev_config->axis_config[i].deadband_size &&			// 3*3*deadband_size = 3 sigma
 					IsDynamicDeadbandHolding(tmp[i], deadband_buffer[i], p_dev_config->axis_config[i].deadband_size))
