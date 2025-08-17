@@ -62,7 +62,7 @@
 #define Composite_SIZ_DEVICE_DESC               18
 #define Composite_SIZ_CONFIG_DESC               66
 #define JoystickHID_SIZ_REPORT_DESC             86
-#define CustomHID_SIZ_REPORT_DESC             	96
+#define CustomHID_SIZ_REPORT_DESC             	122
 #define Composite_SIZ_STRING_LANGID             4
 #define Composite_SIZ_STRING_VENDOR             64
 #define Composite_SIZ_STRING_PRODUCT            52

@@ -56,6 +56,9 @@
 
 #include "config.h"
 #include "crc16.h"
+#include "common_defines.h"
+#include "common_types.h"
+#include "force_anchors.h"
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
@@ -74,6 +77,26 @@ __IO uint8_t EP2_PrevXferComplete = 1;
 
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
+
+
+/* queue a DEV reply if EP2 IN is busy, flush in EP2_IN_Callback */
+static volatile uint8_t dev_in_pending = 0;
+static uint8_t dev_in_buf[64];
+
+static inline void dev_send_or_queue(uint8_t op, const void *payload, uint8_t len)
+{
+    uint8_t out[64] = {0};
+    out[0] = REPORT_ID_DEV;
+    out[1] = op;
+    if (payload && len) {
+        if (len > 62) len = 62;
+        memcpy(&out[2], payload, len);
+    }
+    if (USB_CUSTOM_HID_SendReport(2, out, 64) < 0) {
+        memcpy(dev_in_buf, out, 64);
+        dev_in_pending = 1;
+    }
+}
 
 /*******************************************************************************
 * Function Name  : EP1_OUT_Callback.
@@ -159,7 +182,48 @@ void EP2_OUT_Callback(void)
 			}
 		}
 		break;
-		
+	 case REPORT_ID_DEV:
+{
+    uint8_t op = hid_buf[1];
+
+    switch (op)
+    {
+    case OP_GET_FACTORY_ANCHORS:
+    {
+        force_factory_anchors_t fa;
+        (void)force_anchors_read(&fa);
+        dev_send_or_queue(OP_GET_FACTORY_ANCHORS, &fa, sizeof(fa));
+        break;
+    }
+
+    case OP_SET_FACTORY_ANCHORS:
+    {
+        force_factory_anchors_t fa;
+        memcpy(&fa, &hid_buf[2], sizeof(fa));   /* 46 bytes from host */
+
+        /* ACK immediately so host doesn't time out */
+        uint8_t status = 1;                     /* queued OK */
+        dev_send_or_queue(OP_SET_FACTORY_ANCHORS, &status, 1);
+
+        /* do the slow work after replying */
+        (void)force_anchors_write(&fa);
+        break;
+    }
+
+    case OP_LOCK_FACTORY_ANCHORS:
+    {
+        uint8_t status = 1;                     /* queued OK */
+        dev_send_or_queue(OP_LOCK_FACTORY_ANCHORS, &status, 1);
+        (void)force_anchors_lock();
+        break;
+    }
+
+    default:
+        dev_send_or_queue(op, NULL, 0);
+        break;
+    }
+}
+break;
 		case REPORT_ID_CONFIG_OUT:
 		{
 			if (hid_buf[1] == cfg_count && last_cfg_size > 0)
@@ -262,6 +326,11 @@ void EP1_IN_Callback(void)
 void EP2_IN_Callback(void)
 {
   EP2_PrevXferComplete = 1;
+  if (dev_in_pending && (bDeviceState == CONFIGURED)) {
+      if (USB_CUSTOM_HID_SendReport(2, dev_in_buf, 64) == 0) {
+          dev_in_pending = 0;
+      }
+  }
 }
 
 /*******************************************************************************
@@ -273,21 +342,26 @@ void EP2_IN_Callback(void)
 *******************************************************************************/
 int8_t USB_CUSTOM_HID_SendReport(uint8_t EP_num, uint8_t * data, uint8_t length)
 {
-	if ((EP_num == 1) && (EP1_PrevXferComplete) && (bDeviceState == CONFIGURED))
-	{
-			USB_SIL_Write(EP1_IN, data, length);
-			SetEPTxValid(ENDP1);
-			EP1_PrevXferComplete = 0;
-			return 0;
-	}
-	else if ((EP_num == 2) && (EP2_PrevXferComplete) && (bDeviceState == CONFIGURED))
-	{
-			USB_SIL_Write(EP2_IN, data, length);
-			SetEPTxValid(ENDP2);
-			EP2_PrevXferComplete = 0;
-			return 0;
-	}
-	return -1;
+    if ((EP_num == 1) && (EP1_PrevXferComplete) && (bDeviceState == CONFIGURED))
+    {
+        USB_SIL_Write(EP1_IN, data, length);
+        SetEPTxValid(ENDP1);
+        EP1_PrevXferComplete = 0;
+        return 0;
+    }
+    else if ((EP_num == 2) && (EP2_PrevXferComplete) && (bDeviceState == CONFIGURED))
+    {
+        /* --- DEV safety shim: force full 64 bytes for DEV replies --- */
+        uint8_t len = length;
+        if (data && data[0] == REPORT_ID_DEV && length < 64) {
+            len = 64;
+        }
+        USB_SIL_Write(EP2_IN, data, len);
+        SetEPTxValid(ENDP2);
+        EP2_PrevXferComplete = 0;
+        return 0;
+    }
+    return -1;
 }
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
 

@@ -299,9 +299,26 @@ uint8_t CustomHID_ReportDescriptor[CustomHID_SIZ_REPORT_DESC] =
 		0x95, 0x3f,                    //   REPORT_COUNT (63)
 		0x91, 0x00,                    //   OUTPUT (Data,Ary,Abs)
 		
+		 // ===== DEV (REPORT_ID_DEV) IN 63, OUT 63 =====
+  0x85, REPORT_ID_DEV,     // REPORT_ID (DEV)
+  0x06, 0x00, 0xFF,        // USAGE_PAGE (Vendor)
+  0x09, 0x0A,              // USAGE (Vendor A)
+  0x15, 0x00,              // LOGICAL_MINIMUM (0)
+  0x26, 0xFF, 0x00,        // LOGICAL_MAXIMUM (255)
+  0x75, 0x08,              // REPORT_SIZE (8)
+  0x95, 0x3F,              // REPORT_COUNT (63 data bytes)
+  0x81, 0x00,              // INPUT (Data,Array,Abs)
+
+  0x09, 0x0B,              // USAGE (Vendor B)
+  0x75, 0x08,
+  0x95, 0x3F,              // REPORT_COUNT (63 data bytes)
+  0x91, 0x00,              // OUTPUT (Data,Array,Abs)
+
+		
 		
 		0xc0,                           // END_COLLECTION
   }; /* CustomHID_ReportDescriptor */
+	
 
 /* USB String Descriptors (optional) */
 uint8_t Composite_StringLangID[Composite_SIZ_STRING_LANGID] =

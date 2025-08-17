@@ -21,22 +21,60 @@
   ******************************************************************************
   */
 
-/* Define to prevent recursive inclusion -------------------------------------*/
 #ifndef __I2C_H__
 #define __I2C_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include <stdint.h>
+#include <stddef.h>
 #include "stm32f10x.h"
-#include "stm32f10x_conf.h"
+#include "stm32f10x_i2c.h"
+#include "stm32f10x_dma.h"
+#include "stm32f10x_rcc.h"
+#include "common_types.h"     // for pin_t, I2C_SCL / I2C_SDA enums
+#include "common_defines.h"   // for USED_PINS_NUM 
 
-#define I2C_TIMEOUT		500
+// ===== Optional: timeout guard (kept same default as your code) =====
+#ifndef I2C_TIMEOUT
+#define I2C_TIMEOUT 100000UL
+#endif
 
+/**
+ * @brief Force-select bus at runtime (0 = I2C2 PB10/PB11; 1 = I2C1 PB6/PB7).
+ * @param use_i2c1 0 -> I2C2; 1 -> I2C1
+ */
+void I2C_ForceBus(uint8_t use_i2c1);
+
+/**
+ * @brief Auto-select I2C bus by inspecting configured pins array.
+ *        If PB6==I2C_SCL and PB7==I2C_SDA -> selects I2C1, else I2C2.
+ * @param pins  pointer to array of pin function enums (config.pins[])
+ * @param count length of the pins array
+ */
+void I2C_SelectBusFromPins(const pin_t *pins, size_t count);
+
+/**
+ * @brief Initialize the currently selected I2C peripheral (default I2C2).
+ */
 void I2C_Start(void);
 
-int I2C_WriteBlocking(uint8_t dev_addr, uint8_t reg_addr, uint8_t * data, uint16_t length);
-int I2C_ReadBlocking(	uint8_t dev_addr, uint8_t reg_addr, uint8_t * data, uint16_t length, uint8_t nack);
+/** Blocking write: dev_addr/reg_addr + payload. 0 on success, <0 on timeout/error. */
+int I2C_WriteBlocking(uint8_t dev_addr, uint8_t reg_addr, uint8_t *data, uint16_t length);
 
-int I2C_WriteNonBlocking(uint8_t dev_addr, uint8_t * data, uint16_t length);
-int I2C_ReadNonBlocking(uint8_t dev_addr, uint8_t reg_addr, uint8_t * data, uint16_t length, uint8_t nack);
+/** Blocking read: write reg, then read payload. 0 on success, <0 on timeout/error. */
+int I2C_ReadBlocking(uint8_t dev_addr, uint8_t reg_addr, uint8_t *data, uint16_t length, uint8_t nack);
 
-#endif 	/* __I2C_H__ */
+/** Non-blocking write via DMA. 0 on success, <0 on timeout/error. */
+int I2C_WriteNonBlocking(uint8_t dev_addr, uint8_t *data, uint16_t length);
 
+/** Non-blocking read via DMA. 0 on success, <0 on timeout/error. */
+int I2C_ReadNonBlocking(uint8_t dev_addr, uint8_t reg_addr, uint8_t *data, uint16_t length, uint8_t nack);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __I2C_H__ */

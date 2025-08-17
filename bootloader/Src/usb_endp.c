@@ -88,106 +88,123 @@ volatile bool flash_finished = 0;
 *******************************************************************************/
 void EP1_OUT_Callback(void)
 {
-	static  uint16_t firmware_len = 0;
+    static uint16_t firmware_len = 0;
 
-	uint8_t hid_buf[64];
-	uint8_t repotId;
-	
-	/* Read received data (2 bytes) */  
-  USB_SIL_Read(EP1_OUT, hid_buf);
-	
-	repotId = hid_buf[0];
-	
-	LED1_ON;
-	switch (repotId)
-	{		
-		case REPORT_ID_FIRMWARE:
-		{			
-			uint16_t crc_comp = 0;
-			uint16_t firmware_in_cnt = 0;
-			
-			uint16_t cnt = hid_buf[1]<<8 | hid_buf[2];
-			
-			if (cnt == 0)			// first packet with info data
-			{
-				firmware_len = hid_buf[5]<<8 | hid_buf[4];
-				crc_in = hid_buf[7]<<8 | hid_buf[6];
-				
-				if (firmware_len <= 0xE000)	// check new firmware size, 56kB max
-				{
-					flash_started = 1;
-					
-					FLASH_Unlock();
-					for (uint8_t i=0; i<MAX_PAGE-FIRMWARE_START_PAGE; i++)
-					{
-						if (FLASH_ErasePage(FIRMWARE_COPY_ADDR +i*FLASH_PAGE_SIZE) != FLASH_COMPLETE)
-						{
-							firmware_in_cnt = 0xF003;	// flash erase error
-						}							
-					}
-					FLASH_Lock();
-					firmware_in_cnt = cnt+1;
-				}
-				else // firmware size error
-				{
-					firmware_in_cnt = 0xF001;
-				}
-			}
-			else if (flash_started && (firmware_len > 0) && (cnt*60 < firmware_len) )		// body of firmware data
-			{
-				FLASH_Unlock();
-				for (uint8_t i=0;i<60;i+=2)
-				{
-					uint16_t tmp16 = hid_buf[i + 5]<<8 | hid_buf[i + 4];
-					FLASH_ProgramHalfWord(FIRMWARE_COPY_ADDR + (cnt-1)*60 + i, tmp16);
-				}
-				FLASH_Lock();
-				firmware_in_cnt = cnt+1;
-			}
-			else if (flash_started && firmware_len > 0)		// last packet
-			{
-				FLASH_Unlock();
-				for (uint8_t i=0;i<60;i+=2)
-				{
-					uint16_t tmp16 = hid_buf[i + 5]<<8 | hid_buf[i + 4];
-					FLASH_ProgramHalfWord(FIRMWARE_COPY_ADDR + (cnt-1)*60 + i, tmp16);
-				}
-				FLASH_Lock();
-				
-				// check CRC16				
-				crc_comp = Crc16((uint8_t*)FIRMWARE_COPY_ADDR, firmware_len);				
-				if (crc_in == crc_comp && crc_comp != 0)
-				{
-					flash_started = 0;
-					flash_finished = 1;
-					firmware_in_cnt = 0xF000;	// OK
-				}
-				else	// CRC error
-				{
-					firmware_in_cnt = 0xF002;
-				}
-			}
-			
-			if (firmware_in_cnt > 0)
-			{
-				uint8_t tmp_buf[3];
-				tmp_buf[0] = REPORT_ID_FIRMWARE;
-				tmp_buf[1] = (firmware_in_cnt)>>8;
-				tmp_buf[2] = (firmware_in_cnt)&0xFF;
-				
-				USB_CUSTOM_HID_SendReport(1, tmp_buf, 3);
+    uint8_t hid_buf[64];
+    uint8_t repotId;
 
-			}
-			
-		}
-		break;
-		
-		default:
-			break;
-	}
-	
-	LED1_OFF;	
-  SetEPRxStatus(ENDP1, EP_RX_VALID);
+    /* Read received data (2 bytes) */
+    USB_SIL_Read(EP1_OUT, hid_buf);
+    repotId = hid_buf[0];
+
+    LED1_ON;
+    switch (repotId)
+    {
+        case REPORT_ID_FIRMWARE:
+        {
+            uint16_t crc_comp = 0;
+            uint16_t firmware_in_cnt = 0;
+            uint16_t cnt = (uint16_t)(hid_buf[1] << 8) | hid_buf[2];
+
+            if (cnt == 0)   // first packet with info data
+            {
+                firmware_len = (uint16_t)(hid_buf[5] << 8) | hid_buf[4];
+                crc_in       = (uint16_t)(hid_buf[7] << 8) | hid_buf[6];
+
+                /* Compute max pages and max length so we DO NOT erase reserved tail pages.
+                   Assumes the last 2 pages are reserved (e.g., CONFIG/FACTORY). */
+                const uint16_t reserved_pages = 2u;
+                const uint16_t max_pages = (uint16_t)((MAX_PAGE - reserved_pages) - FIRMWARE_START_PAGE);
+                const uint32_t max_fw_len = (uint32_t)max_pages * (uint32_t)FLASH_PAGE_SIZE;
+
+                if (firmware_len <= max_fw_len)   // size check vs. app region only
+                {
+                    flash_started = 1;
+
+                    /* Selective erase: only the application region */
+                    FLASH_Unlock();
+                    for (uint16_t i = 0; i < max_pages; i++)
+                    {
+                        if (FLASH_ErasePage(FIRMWARE_COPY_ADDR + (uint32_t)i * FLASH_PAGE_SIZE) != FLASH_COMPLETE)
+                        {
+                            firmware_in_cnt = 0xF003;    // flash erase error
+                            break;
+                        }
+                    }
+                    FLASH_Lock();
+
+                    if (firmware_in_cnt != 0xF003)
+                        firmware_in_cnt = cnt + 1;      // request next chunk
+                }
+                else
+                {
+                    firmware_in_cnt = 0xF001;          // firmware size error
+                }
+            }
+            else if (flash_started && (firmware_len > 0) && (cnt * 60u < firmware_len))   // body packet(s)
+            {
+                /* Write full 60-byte chunk */
+                FLASH_Unlock();
+                for (uint8_t i = 0; i < 60; i += 2)
+                {
+                    uint16_t hw = (uint16_t)(hid_buf[i + 5] << 8) | hid_buf[i + 4];
+                    FLASH_ProgramHalfWord(FIRMWARE_COPY_ADDR + (uint32_t)(cnt - 1) * 60u + i, hw);
+                }
+                FLASH_Lock();
+
+                firmware_in_cnt = cnt + 1;             // request next chunk
+            }
+            else if (flash_started && firmware_len > 0)    // last packet
+            {
+                /* Only write the remaining bytes (<=60), clamp to even */
+                uint32_t wrote = (uint32_t)(cnt - 1) * 60u;
+                uint16_t tail  = 0;
+                if (firmware_len > wrote) {
+                    uint32_t rem = (uint32_t)firmware_len - wrote;
+                    tail = (uint16_t)(rem > 60u ? 60u : rem);
+                }
+                // ensure even number of bytes for half-word programming
+                if (tail & 1u) tail--;
+
+                FLASH_Unlock();
+                for (uint16_t i = 0; i < tail; i += 2)
+                {
+                    uint16_t hw = (uint16_t)(hid_buf[i + 5] << 8) | hid_buf[i + 4];
+                    FLASH_ProgramHalfWord(FIRMWARE_COPY_ADDR + wrote + i, hw);
+                }
+                FLASH_Lock();
+
+                /* CRC16 over exactly firmware_len bytes at destination */
+                crc_comp = Crc16((uint8_t*)FIRMWARE_COPY_ADDR, firmware_len);
+                if ((crc_in == crc_comp) && (crc_comp != 0))
+                {
+                    flash_started  = 0;
+                    flash_finished = 1;
+                    firmware_in_cnt = 0xF000;          // OK
+                }
+                else
+                {
+                    firmware_in_cnt = 0xF002;          // CRC error
+                }
+            }
+
+            if (firmware_in_cnt > 0)
+            {
+                uint8_t tmp_buf[3];
+                tmp_buf[0] = REPORT_ID_FIRMWARE;
+                tmp_buf[1] = (uint8_t)(firmware_in_cnt >> 8);
+                tmp_buf[2] = (uint8_t)(firmware_in_cnt & 0xFF);
+                USB_CUSTOM_HID_SendReport(1, tmp_buf, 3);
+            }
+        }
+        break;
+
+        default:
+            break;
+    }
+
+    LED1_OFF;
+    SetEPRxStatus(ENDP1, EP_RX_VALID);
 }
 
 /*******************************************************************************

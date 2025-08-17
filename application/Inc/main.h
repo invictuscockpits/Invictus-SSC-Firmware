@@ -34,7 +34,7 @@
 
 static const dev_config_t init_config =
 {
-	.firmware_version = 0x2101,		// do not change	
+	.firmware_version = 0x2111,		// do not change	
 	/* 
 		Name of device in devices dispatcher
 	*/
