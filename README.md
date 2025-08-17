@@ -8,7 +8,7 @@ Please download the most recent Configurator release to flash.  If the configura
 
 **Firmware for Invictus Cockpit Systems’ HOTAS line of products.**
 
-This firmware is a modified version of the [FreeJoy project](https://github.com/FreeJoy-Team/FreeJoy), adapted specifically for Invictus flight control devices. It is **not** intended for general-purpose joystick builds or hobbyist experimentation, but you may find some useful modifications inside the code that can help you with your Freejoy Project
+This firmware is derived from the [FreeJoy project](https://github.com/FreeJoy-Team/FreeJoy), but heavily modified and adapted specifically for Invictus flight control devices. It is **not** intended for general-purpose joystick builds or hobbyist experimentation, but you may find some useful modifications inside the code that can help you with your Freejoy Project
 
 ## Description
 
