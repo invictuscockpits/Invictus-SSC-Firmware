@@ -272,22 +272,22 @@ void TIM2_IRQHandler(void)
 				params_report.firmware_version = FIRMWARE_VERSION;
 				memcpy(params_report.axis_data, joy_report.axis_data, sizeof(params_report.axis_data));
 				
-				if (report == 0)
-				{
-					report_buf[1] = 0;
-					memcpy(&report_buf[2], (uint8_t *)&(params_report), 62);
-				}
-				else
-				{
-					report_buf[1] = 1;
-					memcpy(&report_buf[2], (uint8_t *)&(params_report) + 62, sizeof(params_report_t) - 62);
-				}
-				
-				// send params report
-				if (USB_CUSTOM_HID_SendReport(2, report_buf, 64) == 0)
-				{
-					report = !report;
-				}
+
+			if (report == 0) 
+			{ 
+				report_buf[1] = 0; 
+				memcpy(&report_buf[2], (uint8_t *)&(params_report), 62); 
+
+			} 
+			else 
+			{ 
+				report_buf[1] = 1; 
+				memcpy(&report_buf[2], (uint8_t *)&(params_report) + 62, sizeof(params_report_t) - 62); 
+			}
+
+    if (USB_CUSTOM_HID_SendReport(2, report_buf, 64) == 0) {
+        report = !report;
+    }
 			}
 		}
 
