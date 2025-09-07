@@ -52,7 +52,7 @@
 #define FLASH_PAGE_SIZE                     0x400
 #define FACTORY_ADDR                        (CONFIG_ADDR - FLASH_PAGE_SIZE)  // protected page
 #define FACTORY_MAGIC                       0xF00C
-#define FACTORY_VERSION                     0x01
+#define FACTORY_VERSION                     0x02
 
 
 #define INVICTUS_GREEEN "rgb(5, 170, 61)"
@@ -72,6 +72,7 @@ enum {
     OP_GET_FACTORY_ANCHORS  = 1,
     OP_SET_FACTORY_ANCHORS  = 2,
     OP_LOCK_FACTORY_ANCHORS = 3,
+		
 };
 
 

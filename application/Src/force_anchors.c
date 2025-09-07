@@ -6,8 +6,8 @@
 	*										force values that otherwise cannot be recovered.			
 	* @project        Invictus HOTAS Firmware
   * @author         Invictus Cockpit Systems
-  * @version        1.0.0
-  * @date           2025-08-16
+  * @version        1.1.0
+  * @date           2025-09-06
   *
   * Based on FreeJoy firmware by Yury Vostrenkov (2020)
   * https://github.com/FreeJoy-Team/FreeJoy
@@ -28,6 +28,8 @@
 #include "force_anchors.h"
 #include "common_defines.h"       // FACTORY_ADDR / FACTORY_MAGIC / FACTORY_VERSION
 #include "stm32f10x_flash.h"      // same FLASH API used in config.c
+
+#define ANCHORS_WIRE_LEN 46u
 
 // Pointer to flash-resident page
 static inline const force_factory_anchors_t* FA_ptr(void) {
@@ -52,22 +54,31 @@ uint32_t force_crc32(const void *data, uint32_t len) { return crc32_le(data, len
 /* ---------------- Flash write helper (mirror config.c pattern) ---------------- */
 static bool flash_write_factory(const force_factory_anchors_t *src)
 {
+    /* 1) Proper unlock + flag clear */
     FLASH_Unlock();
-    FLASH_ErasePage(FACTORY_ADDR);
+    FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_PGERR | FLASH_FLAG_WRPRTERR);
 
-    const uint32_t *w = (const uint32_t*)src;
-    // round up to next word boundary
-    uint32_t words = (sizeof(*src) + 3) / 4;
+    /* 2) Erase and check status */
+    if (FLASH_ErasePage(FACTORY_ADDR) != FLASH_COMPLETE) {
+        FLASH_Lock();
+        return false;
+    }
 
-    for (uint32_t i = 0; i < words; i++) {
-        if (FLASH_ProgramWord(FACTORY_ADDR + i*4, w[i]) != FLASH_COMPLETE) {
+    /* 3) Program as halfwords (more tolerant on F1) */
+    const uint16_t *hw = (const uint16_t*)src;
+    const uint32_t halfwords = (sizeof(*src) + 1u) / 2u;
+
+    for (uint32_t i = 0; i < halfwords; ++i) {
+        if (FLASH_ProgramHalfWord(FACTORY_ADDR + (i * 2u), hw[i]) != FLASH_COMPLETE) {
             FLASH_Lock();
             return false;
         }
     }
+
     FLASH_Lock();
     return true;
 }
+
 
 
 /* ---------------- Public API ---------------- */
@@ -129,6 +140,8 @@ bool force_anchors_lock(void)
     if (!flash_write_factory(&w)) return false;
     return force_anchors_valid(FA_ptr()) && FA_ptr()->sealed == 1;
 }
+
+
 bool force_anchors_handle_op(uint8_t op,
                              const uint8_t *in_payload, uint8_t in_len,
                              uint8_t *out_buf, uint8_t *out_len)
@@ -167,7 +180,6 @@ bool force_anchors_handle_op(uint8_t op,
         return true;
     }
 
-    default:
-        return false; // unknown op
-    }
+   
+	}
 }

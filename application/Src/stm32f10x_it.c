@@ -276,14 +276,9 @@ void TIM2_IRQHandler(void)
 				if (report == 0) {
         report_buf[1] = 0;
 
-        // page 0 payload
         memcpy(&report_buf[2], (uint8_t*)&params_report, 62);
 
-        // >>> FORCE THE ON-WIRE BYTES **AFTER** THE MEMCPY <<<
-        report_buf[2] = 0xCD;   // low byte of 0xABCD
-        report_buf[3] = 0xAB;   // high byte of 0xABCD
-        // ^^^ your GUI log should now print fw=0xabcd for page 0
-        // ================================================
+      
 
     } else {
         report_buf[1] = 1;

@@ -401,7 +401,7 @@ typedef struct {
 typedef struct {
     /* housekeeping / integrity */
     uint16_t magic;     /* 0xF00C */
-    uint8_t  version;   /* 1 */
+    uint8_t  version;   /* 2 */
     uint8_t  sealed;    /* 1 = locked against non-Dev writes */
     uint32_t crc32;     /* CRC of the entire struct (magic..end), sealed included */
 
@@ -412,6 +412,11 @@ typedef struct {
 
     force_triplet_t pitch_up_25lbf_digital; /* “digital pitch-up” */
     force_triplet_t pitch_up_40lbf_analog;  /* “analog pitch-up”  */
+		
+		/* Device identification fields */
+    char serial_number[16];      /* Device serial number (null-terminated) */
+    char model_number[16];       /* Model/part number (null-terminated) */
+    char manufacture_date[11];   /* Manufacturing date YYYY-MM-DD (null-terminated) */
 
     /* future extension space if you later add 25% etc. */
     uint8_t  reserved[8];
