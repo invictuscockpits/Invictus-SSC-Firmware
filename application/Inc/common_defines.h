@@ -72,6 +72,10 @@ enum {
     OP_GET_FACTORY_ANCHORS  = 1,
     OP_SET_FACTORY_ANCHORS  = 2,
     OP_LOCK_FACTORY_ANCHORS = 3,
+		OP_UNLOCK_FACTORY_ANCHORS = 4,
+		// New device info operations
+    OP_GET_DEVICE_INFO = 5,
+    OP_SET_DEVICE_INFO = 6,
 		
 };
 

@@ -29,7 +29,7 @@
 #include "common_defines.h"       // FACTORY_ADDR / FACTORY_MAGIC / FACTORY_VERSION
 #include "stm32f10x_flash.h"      // same FLASH API used in config.c
 
-#define ANCHORS_WIRE_LEN 46u
+#define ANCHORS_WIRE_LEN 89u
 
 // Pointer to flash-resident page
 static inline const force_factory_anchors_t* FA_ptr(void) {

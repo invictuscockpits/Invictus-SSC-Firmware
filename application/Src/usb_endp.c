@@ -59,6 +59,8 @@
 #include "common_defines.h"
 #include "common_types.h"
 #include "force_anchors.h"
+#include "device_info.h"
+
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
