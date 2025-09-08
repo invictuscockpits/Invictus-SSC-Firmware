@@ -24,19 +24,18 @@
   ******************************************************************************
   */
 	
-	#ifndef DEVICE_INFO_H
+#ifndef DEVICE_INFO_H
 #define DEVICE_INFO_H
 
 #include <stdint.h>
-#include <stdbool.h>
+#include <stdbool.h>  // Add this for bool type
 #include "common_types.h"
 
-bool device_info_valid(const device_info_t *blk);
-bool device_info_read(device_info_t *out);
-bool device_info_write(const device_info_t *in);
-bool device_info_lock(void);
+void device_info_init(void);
 
 bool device_info_handle_op(uint8_t op, const uint8_t *in_payload, uint8_t in_len,
-                          uint8_t *out_buf, uint8_t *out_len);
+                           uint8_t *out_buf, uint8_t *out_len);
+
+extern device_info_t g_device_info;
 
 #endif // DEVICE_INFO_H

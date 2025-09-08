@@ -32,6 +32,7 @@
 #include "leds.h"
 #include "encoders.h"
 
+
 #include "usb_hw.h"
 #include "usb_lib.h"
 #include "usb_pwr.h"
@@ -42,7 +43,7 @@ dev_config_t dev_config;
 volatile uint8_t bootloader = 0;
 
 /* Private function prototypes -----------------------------------------------*/
-
+void device_info_init(void);
 /**
   * @brief  The application entry point.
   *
@@ -81,6 +82,9 @@ int main(void)
 	AxesInit(&dev_config);
 	// start sequential periphery reading
 	Timers_Init(&dev_config);		
+	
+	// Initialize device info from flash
+	device_info_init();
 	
   while (1)
   {		
@@ -137,7 +141,4 @@ void EnterBootloader (void)
   * @}
   */
 
-/**
-  * @}
-  */
 

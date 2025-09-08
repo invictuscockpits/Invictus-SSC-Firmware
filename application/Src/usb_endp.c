@@ -130,7 +130,7 @@ void EP2_OUT_Callback(void)
 	uint8_t repotId;
 
 	/* Read received data (2 bytes) */
-  USB_SIL_Read(EP2_OUT, hid_buf);
+	USB_SIL_Read(EP2_OUT, hid_buf);
 	
 	repotId = hid_buf[0];
 	
@@ -151,7 +151,7 @@ void EP2_OUT_Callback(void)
 	}
 	
 	uint8_t cfg_count = sizeof(dev_config_t) / 62;
-  uint8_t last_cfg_size = sizeof(dev_config_t) % 62;
+	uint8_t last_cfg_size = sizeof(dev_config_t) % 62;
 	if (last_cfg_size > 0)
 	{
 		cfg_count++;
@@ -184,48 +184,79 @@ void EP2_OUT_Callback(void)
 			}
 		}
 		break;
-	 case REPORT_ID_DEV:
-{
-    uint8_t op = hid_buf[1];
+		
+		case REPORT_ID_DEV:
+		{
+			uint8_t op = hid_buf[1];
 
-    switch (op)
-    {
-    case OP_GET_FACTORY_ANCHORS:
-    {
-        force_factory_anchors_t fa;
-        (void)force_anchors_read(&fa);
-        dev_send_or_queue(OP_GET_FACTORY_ANCHORS, &fa, sizeof(fa));
-        break;
-    }
+			switch (op)
+			{
+			case 99:  // Test echo command
+			{
+					uint8_t test_response[4] = {0xAA, 0xBB, 0xCC, 0xDD};
+					dev_send_or_queue(op, test_response, 4);
+					break;
+			}
+			case OP_GET_FACTORY_ANCHORS:
+			{
+				force_factory_anchors_t fa;
+				(void)force_anchors_read(&fa);
+				dev_send_or_queue(OP_GET_FACTORY_ANCHORS, &fa, sizeof(fa));
+				break;
+			}
 
-    case OP_SET_FACTORY_ANCHORS:
-    {
-        force_factory_anchors_t fa;
-        memcpy(&fa, &hid_buf[2], sizeof(fa));   /* 46 bytes from host */
+			case OP_SET_FACTORY_ANCHORS:
+			{
+				force_factory_anchors_t fa;
+				memcpy(&fa, &hid_buf[2], sizeof(fa));   /* 46 bytes from host */
 
-        /* ACK immediately so host doesn't time out */
-        uint8_t status = 1;                     /* queued OK */
-        dev_send_or_queue(OP_SET_FACTORY_ANCHORS, &status, 1);
+				/* ACK immediately so host doesn't time out */
+				uint8_t status = 1;                     /* queued OK */
+				dev_send_or_queue(OP_SET_FACTORY_ANCHORS, &status, 1);
 
-        /* do the slow work after replying */
-        (void)force_anchors_write(&fa);
-        break;
-    }
+				/* do the slow work after replying */
+				(void)force_anchors_write(&fa);
+				break;
+			}
 
-    case OP_LOCK_FACTORY_ANCHORS:
-    {
-        uint8_t status = 1;                     /* queued OK */
-        dev_send_or_queue(OP_LOCK_FACTORY_ANCHORS, &status, 1);
-        (void)force_anchors_lock();
-        break;
-    }
+			case OP_LOCK_FACTORY_ANCHORS:
+			{
+				uint8_t status = 1;                     /* queued OK */
+				dev_send_or_queue(OP_LOCK_FACTORY_ANCHORS, &status, 1);
+				(void)force_anchors_lock();
+				break;
+			}
 
-    default:
-        dev_send_or_queue(op, NULL, 0);
-        break;
-    }
-}
-break;
+			case OP_GET_DEVICE_INFO:
+			case OP_SET_DEVICE_INFO:
+			{
+					uint8_t response[64];
+					uint8_t response_len = 0;
+					
+					const uint8_t *payload = &hid_buf[2];
+					uint8_t payload_len = 62;
+					
+					if (device_info_handle_op(op, payload, payload_len, response, &response_len))
+					{
+							dev_send_or_queue(op, response, response_len);
+					}
+					else
+					{
+							// Send error response
+							uint8_t error = 0;
+							dev_send_or_queue(op, &error, 1);
+					}
+					break;
+			}
+			
+
+			default:
+				dev_send_or_queue(op, NULL, 0);
+				break;
+			}
+		}
+		break;
+		
 		case REPORT_ID_CONFIG_OUT:
 		{
 			if (hid_buf[1] == cfg_count && last_cfg_size > 0)
@@ -302,8 +333,7 @@ break;
 	}
 
 	memset(hid_buf, 0 ,64);
-  SetEPRxStatus(ENDP2, EP_RX_VALID);
- 
+	SetEPRxStatus(ENDP2, EP_RX_VALID);
 }
 
 /*******************************************************************************
