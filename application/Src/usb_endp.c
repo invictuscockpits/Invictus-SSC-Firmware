@@ -191,12 +191,7 @@ void EP2_OUT_Callback(void)
 
 			switch (op)
 			{
-			case 99:  // Test echo command
-			{
-					uint8_t test_response[4] = {0xAA, 0xBB, 0xCC, 0xDD};
-					dev_send_or_queue(op, test_response, 4);
-					break;
-			}
+
 			case OP_GET_FACTORY_ANCHORS:
 			{
 				force_factory_anchors_t fa;
@@ -228,27 +223,39 @@ void EP2_OUT_Callback(void)
 			}
 
 			case OP_GET_DEVICE_INFO:
-			case OP_SET_DEVICE_INFO:
 			{
-					uint8_t response[64];
-					uint8_t response_len = 0;
+					device_info_t info;
+					memset(&info, 0, sizeof(info));
+					info.magic = DEVICE_INFO_MAGIC;
+					info.version = 1;
+					info.locked = g_device_info.locked;
+					info.crc32 = 0;
+					memcpy(info.model_number, g_device_info.model_number, sizeof(info.model_number));
+					memcpy(info.serial_number, g_device_info.serial_number, sizeof(info.serial_number));
+					memcpy(info.manufacture_date, g_device_info.manufacture_date, sizeof(info.manufacture_date));
 					
-					const uint8_t *payload = &hid_buf[2];
-					uint8_t payload_len = 62;
-					
-					if (device_info_handle_op(op, payload, payload_len, response, &response_len))
-					{
-							dev_send_or_queue(op, response, response_len);
-					}
-					else
-					{
-							// Send error response
-							uint8_t error = 0;
-							dev_send_or_queue(op, &error, 1);
-					}
+					dev_send_or_queue(OP_GET_DEVICE_INFO, &info, sizeof(info));
 					break;
 			}
-			
+
+			case OP_SET_DEVICE_INFO:
+			{
+					device_info_t di;
+					memcpy(&di, &hid_buf[2], sizeof(di));   /* 52 bytes from host */
+					
+					/* ACK immediately so host doesn't time out */
+					uint8_t status = 1;                     /* queued OK */
+					dev_send_or_queue(OP_SET_DEVICE_INFO, &status, 1);
+					
+					/* do the slow work after replying */
+					memcpy(g_device_info.model_number, di.model_number, sizeof(g_device_info.model_number));
+					memcpy(g_device_info.serial_number, di.serial_number, sizeof(g_device_info.serial_number));
+					memcpy(g_device_info.manufacture_date, di.manufacture_date, sizeof(g_device_info.manufacture_date));
+				
+					(void)device_info_write_flash();
+					break;
+			}
+						
 
 			default:
 				dev_send_or_queue(op, NULL, 0);

@@ -91,16 +91,23 @@ static uint8_t device_info_read_flash(void)
  * @brief Writes device info to flash
  * @return 1 on success, 0 on failure
  */
-static uint8_t device_info_write_flash(void)
+uint8_t device_info_write_flash(void)
 {
     // Don't write if locked
     if (g_device_info.locked) {
         return 0;
     }
+			
+		// IMPORTANT: Set the header fields before writing
+    g_device_info.magic = DEVICE_INFO_MAGIC;
+    g_device_info.version = 1;
+    g_device_info.locked = 0;
     
     // Update CRC
     g_device_info.crc32 = 0;
     g_device_info.crc32 = crc32_le(&g_device_info, sizeof(g_device_info));
+		
+
     
     // Write to flash
     FLASH_Unlock();
@@ -151,44 +158,52 @@ void device_info_init(void)
 /**
  * @brief Handle device info operations from USB
  */
-bool device_info_handle_op(uint8_t op, const uint8_t *in_payload, uint8_t in_len,
+bool device_info_handle_op(uint8_t op,
+                          const uint8_t *in_payload, uint8_t in_len,
                           uint8_t *out_buf, uint8_t *out_len)
 {
     if (!out_buf || !out_len) return false;
     *out_len = 0;
-
     switch (op)
     {
     case OP_GET_DEVICE_INFO: {
-        memcpy(out_buf, &g_device_info, sizeof(g_device_info));
-        *out_len = sizeof(g_device_info);
+        device_info_t blk;
+        if (!device_info_read_flash()) {
+            // If not initialized/invalid, return defaults so GUI can warn.
+            memset(&blk, 0, sizeof(blk));
+            blk.magic = DEVICE_INFO_MAGIC;
+            blk.version = 1;
+            strcpy(blk.model_number, "UNDEFINED");
+            strcpy(blk.serial_number, "000000");
+        } else {
+            // Copy from global to struct
+            memset(&blk, 0, sizeof(blk));
+            blk.magic = DEVICE_INFO_MAGIC;
+            blk.version = 1;
+            blk.locked = g_device_info.locked;
+            memcpy(blk.model_number, g_device_info.model_number, sizeof(blk.model_number));
+            memcpy(blk.serial_number, g_device_info.serial_number, sizeof(blk.serial_number));
+            memcpy(blk.manufacture_date, g_device_info.manufacture_date, sizeof(blk.manufacture_date));
+        }
+        memcpy(out_buf, &blk, sizeof(blk));
+        *out_len = (uint8_t)sizeof(blk);
         return true;
     }
-
     case OP_SET_DEVICE_INFO: {
-    if (!in_payload || in_len < sizeof(device_info_t)) {
-        return false;
+        if (!in_payload || in_len != sizeof(device_info_t)) {
+            return false; // bad length ? let caller decide how to NAK
+        }
+        const device_info_t *in = (const device_info_t*)in_payload;
+        // Copy to global
+        memcpy(g_device_info.model_number, in->model_number, sizeof(g_device_info.model_number));
+        memcpy(g_device_info.serial_number, in->serial_number, sizeof(g_device_info.serial_number));
+        memcpy(g_device_info.manufacture_date, in->manufacture_date, sizeof(g_device_info.manufacture_date));
+        
+        bool ok = device_info_write_flash();
+        out_buf[0] = ok ? 1 : 0;   // 1=OK, 0=FAIL (e.g., locked)
+        *out_len = 1;
+        return true;
     }
     
-    // Debug: return the address we're writing to
-    out_buf[0] = 1;  // Success
-    out_buf[1] = (DEVICE_INFO_ADDR >> 16) & 0xFF;  // Address high byte
-    out_buf[2] = (DEVICE_INFO_ADDR >> 8) & 0xFF;   // Address mid byte  
-    out_buf[3] = DEVICE_INFO_ADDR & 0xFF;          // Address low byte
-    *out_len = 4;
-    
-    // Do the actual write...
-    const device_info_t *in = (const device_info_t*)in_payload;
-    memcpy(g_device_info.model_number, in->model_number, sizeof(g_device_info.model_number));
-    memcpy(g_device_info.serial_number, in->serial_number, sizeof(g_device_info.serial_number));
-    memcpy(g_device_info.manufacture_date, in->manufacture_date, sizeof(g_device_info.manufacture_date));
-    
-    uint8_t ok = device_info_write_flash();
-    out_buf[0] = ok ? 1 : 0;
-    return true;
-}
-    
-    default:
-        return false;  // Add explicit default case
     }
 }

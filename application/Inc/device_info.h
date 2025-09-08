@@ -35,6 +35,7 @@ void device_info_init(void);
 
 bool device_info_handle_op(uint8_t op, const uint8_t *in_payload, uint8_t in_len,
                            uint8_t *out_buf, uint8_t *out_len);
+uint8_t device_info_write_flash(void);
 
 extern device_info_t g_device_info;
 

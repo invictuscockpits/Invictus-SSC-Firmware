@@ -424,8 +424,8 @@ typedef struct {
     uint8_t  version;
     uint8_t  locked;
     uint32_t crc32;
-    char     model_number[INV_MODEL_MAX_LEN];      // 24 bytes
-    char     serial_number[INV_SERIAL_MAX_LEN];    // 24 bytes
+    char     model_number[INV_MODEL_MAX_LEN];      // 16 bytes
+    char     serial_number[INV_SERIAL_MAX_LEN];    // 16 bytes
     char     manufacture_date[DOM_ASCII_LEN + 1];  // 11 bytes
 } device_info_t;
 
