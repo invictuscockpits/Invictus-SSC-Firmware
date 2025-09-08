@@ -34,13 +34,13 @@
 
 //#define DEBUG
 
-#define FIRMWARE_VERSION				0x2121    // v2.1.1
-#define USED_PINS_NUM						30				// constant for BluePill and BlackPill boards
+#define FIRMWARE_VERSION					0x2121              // v2.1.2 (Fixed firmware flasher)
+#define USED_PINS_NUM						30					// Contstant for HOTAS Control boards
 #define MAX_AXIS_NUM						8					// max 8
-#define MAX_BUTTONS_NUM					128				// power of 2, max 128
+#define MAX_BUTTONS_NUM						128					// power of 2, max 128
 #define MAX_POVS_NUM						4					// max 4
-#define MAX_ENCODERS_NUM				16				// max 64
-#define MAX_SHIFT_REG_NUM				4					// max 4
+#define MAX_ENCODERS_NUM					16					// max 64
+#define MAX_SHIFT_REG_NUM					4					// max 4
 #define MAX_LEDS_NUM						24
 
 #define AXIS_MIN_VALUE						(-32767)
@@ -52,11 +52,25 @@
 #define FLASH_PAGE_SIZE                     0x400
 #define FACTORY_ADDR                        (CONFIG_ADDR - FLASH_PAGE_SIZE)  // protected page
 #define FACTORY_MAGIC                       0xF00C
-#define FACTORY_VERSION                     0x02
+#define FACTORY_VERSION                     0x02 //increase with major changes to protect older versions
+
+#define DEVICE_INFO_OFFSET                  128  // 128 bytes offset (leaving room for force anchors to grow to 128 bytes)
+#define DEVICE_INFO_ADDR                    (FACTORY_ADDR + DEVICE_INFO_OFFSET)
+#define DEVICE_INFO_MAGIC                   0xDEF0
 
 
-#define INVICTUS_GREEEN "rgb(5, 170, 61)"
-#define FLAT_BLACK "rgb(36, 39,49)"
+#define INV_SERIAL_MAX_LEN  24
+#define INV_MODEL_MAX_LEN   24
+#define DOM_ASCII_LEN       10 
+
+/* ---- Dev opcodes ---- */
+#ifndef CMD_GET_DEVICE_ID
+#define CMD_GET_DEVICE_ID   0xA4  /* reply: model[INV_MODEL_MAX_LEN], serial[INV_SERIAL_MAX_LEN], optional 10 bytes "YYYY-MM-DD" */
+#endif
+#ifndef CMD_SET_DEVICE_DOM
+#define CMD_SET_DEVICE_DOM  0xA7  /* payload: 10-byte ASCII "YYYY-MM-DD" (no NUL) */
+#endif
+
 
 enum
 {
@@ -72,12 +86,14 @@ enum {
     OP_GET_FACTORY_ANCHORS  = 1,
     OP_SET_FACTORY_ANCHORS  = 2,
     OP_LOCK_FACTORY_ANCHORS = 3,
-		OP_UNLOCK_FACTORY_ANCHORS = 4,
-		// New device info operations
+    //OP_UNLOCK_FACTORY_ANCHORS = 4,
+    // New device info operations
     OP_GET_DEVICE_INFO = 5,
     OP_SET_DEVICE_INFO = 6,
-		
 };
 
+#ifndef CMD_GET_DEVICE_ID
+#define CMD_GET_DEVICE_ID   0xA4  /* read model/serial/[optional DoM "YYYY-MM-DD"] */
+#endif
 
 #endif 	/* __COMMON_DEFINES_H__ */

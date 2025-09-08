@@ -32,21 +32,17 @@
 #include "common_types.h"
 
 
-// Define the device info flash address (separate from force anchors)
-#define DEVICE_INFO_ADDR (FACTORY_ADDR - FLASH_PAGE_SIZE)  // One page before factory anchors
 
-// Device info magic different from force anchors
-#define DEVICE_INFO_MAGIC 0xDEF0
 
 // Global device info in RAM
 device_info_t g_device_info = {
     .magic = DEVICE_INFO_MAGIC,
     .version = 1,
     .locked = 0,
-		.model_number = "",          
-    .serial_number = "", 
-    .manufacture_date = "",
-    .crc32 = 0
+    .crc32 = 0,
+    .model_number = "",
+    .serial_number = "",
+    .manufacture_date = ""
 };
 
 // CRC32 calculation (same as force anchors)
@@ -134,7 +130,12 @@ static uint8_t device_info_write_flash(void)
  */
 void device_info_init(void)
 {
-    // Try to read from flash
+    const device_info_t *flash = (const device_info_t*)DEVICE_INFO_ADDR;
+    
+    // Debug: check first few bytes
+    const uint8_t *bytes = (const uint8_t*)flash;
+    // You could set a breakpoint here or use your debug method to see these values
+    
     if (!device_info_read_flash()) {
         // Initialize with defaults if not found
         memset(&g_device_info, 0, sizeof(g_device_info));
@@ -165,15 +166,27 @@ bool device_info_handle_op(uint8_t op, const uint8_t *in_payload, uint8_t in_len
     }
 
     case OP_SET_DEVICE_INFO: {
-        if (!in_payload || in_len < sizeof(device_info_t)) {
-            return false;
-        }
-        const device_info_t *in = (const device_info_t*)in_payload;
-        bool ok = device_info_write_flash();
-        out_buf[0] = ok ? 1 : 0;
-        *out_len = 1;
-        return true;
+    if (!in_payload || in_len < sizeof(device_info_t)) {
+        return false;
     }
+    
+    // Debug: return the address we're writing to
+    out_buf[0] = 1;  // Success
+    out_buf[1] = (DEVICE_INFO_ADDR >> 16) & 0xFF;  // Address high byte
+    out_buf[2] = (DEVICE_INFO_ADDR >> 8) & 0xFF;   // Address mid byte  
+    out_buf[3] = DEVICE_INFO_ADDR & 0xFF;          // Address low byte
+    *out_len = 4;
+    
+    // Do the actual write...
+    const device_info_t *in = (const device_info_t*)in_payload;
+    memcpy(g_device_info.model_number, in->model_number, sizeof(g_device_info.model_number));
+    memcpy(g_device_info.serial_number, in->serial_number, sizeof(g_device_info.serial_number));
+    memcpy(g_device_info.manufacture_date, in->manufacture_date, sizeof(g_device_info.manufacture_date));
+    
+    uint8_t ok = device_info_write_flash();
+    out_buf[0] = ok ? 1 : 0;
+    return true;
+}
     
     default:
         return false;  // Add explicit default case
