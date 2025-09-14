@@ -4,8 +4,8 @@
   * @brief          : This file contains the common defines for the app.                  
   * @project        Invictus HOTAS Firmware
   * @author         Invictus Cockpit Systems
-  * @version        1.0.0
-  * @date           2025-07-30
+  * @version        1.2.2
+  * @date           2025-09-13
   *
   * Based on FreeJoy firmware by Yury Vostrenkov (2020)
   * https://github.com/FreeJoy-Team/FreeJoy
@@ -34,34 +34,34 @@
 
 //#define DEBUG
 
-#define FIRMWARE_VERSION					0x2121              // v2.1.2 (Fixed firmware flasher)
-#define USED_PINS_NUM						30					// Contstant for HOTAS Control boards
-#define MAX_AXIS_NUM						8					// max 8
-#define MAX_BUTTONS_NUM						128					// power of 2, max 128
-#define MAX_POVS_NUM						4					// max 4
-#define MAX_ENCODERS_NUM					16					// max 64
+#define FIRMWARE_VERSION					0x2132    // v2.1.3 (Modifying I2C for communicating with Gen 4 Boards)
+#define USED_PINS_NUM							30				// Contstant for HOTAS Control boards
+#define MAX_AXIS_NUM							8					// max 8
+#define MAX_BUTTONS_NUM						128				// power of 2, max 128
+#define MAX_POVS_NUM							4					// max 4
+#define MAX_ENCODERS_NUM					16				// max 64
 #define MAX_SHIFT_REG_NUM					4					// max 4
-#define MAX_LEDS_NUM						24
+#define MAX_LEDS_NUM							24
 
 #define AXIS_MIN_VALUE						(-32767)
 #define AXIS_MAX_VALUE						(32767)
 #define AXIS_CENTER_VALUE					(AXIS_MIN_VALUE + (AXIS_MAX_VALUE-AXIS_MIN_VALUE)/2)
 #define AXIS_FULLSCALE						(AXIS_MAX_VALUE - AXIS_MIN_VALUE + 1)
 
-#define CONFIG_ADDR													(0x0800FC00)
-#define FLASH_PAGE_SIZE                     0x400
-#define FACTORY_ADDR                        (CONFIG_ADDR - FLASH_PAGE_SIZE)  // protected page
-#define FACTORY_MAGIC                       0xF00C
-#define FACTORY_VERSION                     0x02 //increase with major changes to protect older versions
+#define CONFIG_ADDR								(0x0800FC00)
+#define FLASH_PAGE_SIZE           0x400
+#define FACTORY_ADDR              (CONFIG_ADDR - FLASH_PAGE_SIZE)  // protected page
+#define FACTORY_MAGIC             0xF00C
+#define FACTORY_VERSION           0x02 //increase with major changes to protect older versions
 
-#define DEVICE_INFO_OFFSET                  128  // 128 bytes offset (leaving room for force anchors to grow to 128 bytes)
-#define DEVICE_INFO_ADDR                    (FACTORY_ADDR + DEVICE_INFO_OFFSET)
-#define DEVICE_INFO_MAGIC                   0xDEF0
+#define DEVICE_INFO_OFFSET        128  // 128 bytes offset (leaving room for force anchors to grow to 128 bytes)
+#define DEVICE_INFO_ADDR          (FACTORY_ADDR + DEVICE_INFO_OFFSET)
+#define DEVICE_INFO_MAGIC         0xDEF0
 
 
-#define INV_SERIAL_MAX_LEN  16
-#define INV_MODEL_MAX_LEN   16
-#define DOM_ASCII_LEN       10 
+#define INV_SERIAL_MAX_LEN  			16
+#define INV_MODEL_MAX_LEN   			16
+#define DOM_ASCII_LEN       			10 
 
 
 enum

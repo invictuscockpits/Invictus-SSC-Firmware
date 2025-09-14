@@ -2,10 +2,10 @@
   ******************************************************************************
   * @file           : i2c.h
   * @brief          : Header file for i2c.h                 
- * @project        Invictus HOTAS Firmware
+  * @project        Invictus HOTAS Firmware
   * @author         Invictus Cockpit Systems
-  * @version        1.0.0
-  * @date           2025-07-30
+  * @version        1.2.1
+  * @date           2025-09-09
   *
   * Based on FreeJoy firmware by Yury Vostrenkov (2020)
   * https://github.com/FreeJoy-Team/FreeJoy
@@ -16,7 +16,8 @@
   *
   * Modifications and additions are © 2025 Invictus Cockpit Systems.
   *
-  * This software has been carefully modified for a specific purpose.  It is not recommended for use outside of the Invictus HOTAS system.
+  * This software has been carefully modified for a specific purpose.  
+	* It is not recommended for use outside of the Invictus HOTAS system.
   *
   ******************************************************************************
   */
@@ -42,11 +43,7 @@ extern "C" {
 #define I2C_TIMEOUT 100000UL
 #endif
 
-/**
- * @brief Force-select bus at runtime (0 = I2C2 PB10/PB11; 1 = I2C1 PB6/PB7).
- * @param use_i2c1 0 -> I2C2; 1 -> I2C1
- */
-void I2C_ForceBus(uint8_t use_i2c1);
+
 
 /**
  * @brief Auto-select I2C bus by inspecting configured pins array.
