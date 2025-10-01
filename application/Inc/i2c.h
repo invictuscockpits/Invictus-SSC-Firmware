@@ -54,7 +54,7 @@ extern "C" {
 void I2C_SelectBusFromPins(const pin_t *pins, size_t count);
 
 /**
- * @brief Initialize the currently selected I2C peripheral (default I2C2).
+ * @brief Initialize the currently selected I2C peripheral (default I2C1).
  */
 void I2C_Start(void);
 

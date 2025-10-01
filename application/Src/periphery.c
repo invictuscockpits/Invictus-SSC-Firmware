@@ -352,6 +352,8 @@ void IO_Init (dev_config_t * p_dev_config)
 	GPIOC->ODR=0x0;
 	
 
+
+
 	// setting up GPIO according confgiguration
 	for (int i=0; i<USED_PINS_NUM; i++)
 	{
@@ -414,22 +416,32 @@ void IO_Init (dev_config_t * p_dev_config)
 
 			SPI_Start();
 		}
-		else if (p_dev_config->pins[i] == I2C_SCL && i == 21)			// PB10
+		else if (p_dev_config->pins[i] == (I2C_SCL) && i == 17)			// PB6
 		{
-			I2C_Start();
-			
+
+
+    
+   
+
 			GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 			GPIO_InitStructure.GPIO_Pin = pin_config[i].pin;
 			GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_OD;
 			GPIO_Init (GPIOB,&GPIO_InitStructure);
 		}
-		else if (p_dev_config->pins[i] == I2C_SDA && i == 22)			// PB11
+		else if (p_dev_config->pins[i] == (I2C_SDA) && i == 18)			// PB7
 		{		
+
+			
 			GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 			GPIO_InitStructure.GPIO_Pin = pin_config[i].pin;
 			GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_OD;						
 			GPIO_Init (GPIOB,&GPIO_InitStructure);
+			I2C_Start();
+			
+
+			
 		}
+	
 		else if (p_dev_config->pins[i] == TLE5011_CS || 
 						 p_dev_config->pins[i] == TLE5012_CS ||
 						 p_dev_config->pins[i] == MCP3201_CS ||
@@ -446,10 +458,10 @@ void IO_Init (dev_config_t * p_dev_config)
 			GPIO_Init(pin_config[i].port, &GPIO_InitStructure);
 			GPIO_WriteBit(pin_config[i].port, pin_config[i].pin, Bit_SET);
 		}
-		else if (p_dev_config->pins[i] == TLE5011_GEN  && i == 17)
+		/*else if (p_dev_config->pins[i] == TLE5011_GEN  && i == 17)
 		{
 			Generator_Init();	// 4MHz output at PB6 pin
-		}
+		}*/
 		else if (p_dev_config->pins[i] == SHIFT_REG_CLK)
 		{
 			GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;

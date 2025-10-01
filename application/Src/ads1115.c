@@ -33,7 +33,7 @@ void ADS1115_Init(sensor_t * sensor)
 	int status;
 	uint8_t tmp_buf[2];
 	
-	tmp_buf[0] = 0xC3;
+	tmp_buf[0] = 0xC3; 
 	tmp_buf[1] = 0xE3;
 	status = I2C_WriteBlocking(sensor->address, 1, tmp_buf, 2);
 
@@ -129,10 +129,11 @@ int ADS1115_SetMuxDMA(sensor_t * sensor, uint8_t channel)
 	int ret;
 	
 	sensor->data[0] = 0x01;															// config reg address
-	sensor->data[1] = 0xC3 | (channel << 4);							// config reg MSB
+	sensor->data[1] = 0xC3 | (channel << 4);						// config reg MSB 
 	sensor->data[2] = 0xE3;															// config reg LSB
 	
-	sensor->tx_complete = 0;	
+	sensor->tx_complete = 0;
+	sensor->rx_complete = 1;  // Mark rx as complete since we're only writing	
 	ret = I2C_WriteNonBlocking(sensor->address, &sensor->data[0], 3);
 	
 	

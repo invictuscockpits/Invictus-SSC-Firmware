@@ -427,6 +427,8 @@ void AxesInit (dev_config_t * p_dev_config)
 	// Init sources
 	for (int i=0; i<USED_PINS_NUM; i++)
 	{
+		
+		   
 		if (p_dev_config->pins[i] == AXIS_ANALOG)
 		{
 			for (uint8_t k=0; k<MAX_AXIS_NUM; k++)
@@ -565,7 +567,7 @@ void AxesInit (dev_config_t * p_dev_config)
 		}
 	}
 
-	if (p_dev_config->pins[17] == I2C_SCL && p_dev_config->pins[18] == I2C_SDA) //corrected to PB6 and PB7 respectively
+	if (p_dev_config->pins[17] == (I2C_SCL) && p_dev_config->pins[18] == (I2C_SDA)) //corrected to PB6 and PB7 respectively
 	{
 		// look for ADS1115 sensors with different addresses
 		for (uint8_t addr = ADS1115_I2C_ADDR_MIN; addr <= ADS1115_I2C_ADDR_MAX; addr ++)
@@ -579,6 +581,7 @@ void AxesInit (dev_config_t * p_dev_config)
 						sensors[sensors_cnt].address = p_dev_config->axis_config[k].i2c_address;
 						sensors[sensors_cnt].type = ADS1115;
 						sensors[sensors_cnt].source = (pin_t) SOURCE_I2C;
+						
 						
 						ADS1115_Init(&sensors[sensors_cnt]);
 						sensors_cnt++;

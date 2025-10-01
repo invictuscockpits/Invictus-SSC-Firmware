@@ -317,7 +317,7 @@ void TIM2_IRQHandler(void)
 			
 			// Disable periphery before ADC conversion
 			RCC_APB2PeriphClockCmd(RCC_APB2Periph_SPI1,DISABLE);	
-			RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C2|RCC_APB1Periph_TIM4, DISABLE);
+			RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C1|RCC_APB1Periph_TIM4, DISABLE);
 			RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB|RCC_APB2Periph_GPIOC,DISABLE);
 			
 			if (tmp_app_config.fast_encoder_cnt == 0)
@@ -334,7 +334,7 @@ void TIM2_IRQHandler(void)
 			
 			// Enable periphery after ADC conversion
 			RCC_APB2PeriphClockCmd(RCC_APB2Periph_SPI1,ENABLE);	
-			RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C2|RCC_APB1Periph_TIM3|RCC_APB1Periph_TIM4, ENABLE);
+			RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C1|RCC_APB1Periph_TIM3|RCC_APB1Periph_TIM4, ENABLE);
 			RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB|RCC_APB2Periph_GPIOC|RCC_APB2Periph_TIM1,ENABLE);
 		}
 		// External sensors data receiption
@@ -573,21 +573,21 @@ void DMA1_Channel3_IRQHandler(void)
 }
 
 // I2C Tx Complete (used for ADS1115 mux setting operation) 
-void DMA1_Channel4_IRQHandler(void)
+void DMA1_Channel6_IRQHandler(void)
 {
 	uint8_t i=0;
 	uint32_t ticks = I2C_TIMEOUT;
 	
-	if (DMA_GetFlagStatus(DMA1_FLAG_TC4))
+	if (DMA_GetFlagStatus(DMA1_FLAG_TC6))
 	{
 		// Clear transmission complete flag 
-		DMA_ClearFlag(DMA1_FLAG_TC4);
+		DMA_ClearFlag(DMA1_FLAG_TC6);
 		
-		I2C_DMACmd(I2C2,DISABLE);	
-		DMA_Cmd(DMA1_Channel4,DISABLE);
+		I2C_DMACmd(I2C1,DISABLE);	
+		DMA_Cmd(DMA1_Channel6,DISABLE);
 		
 		// EV8_2: Wait until BTF is set before programming the STOP
-    while (((I2C2->SR1 & 0x00004) != 0x000004) && --ticks) {;}
+    while (((I2C1->SR1 & 0x00004) != 0x000004) && --ticks) {;}
 		if(ticks == 0)	
 		{
 			sensors[i].tx_complete = 1;
@@ -597,10 +597,10 @@ void DMA1_Channel4_IRQHandler(void)
 		ticks = I2C_TIMEOUT;
 		
     // Program the STOP
-    I2C_GenerateSTOP(I2C2, ENABLE);
+    I2C_GenerateSTOP(I2C1, ENABLE);
 		
     /* Make sure that the STOP bit is cleared by Hardware */
-		while ((I2C2->CR1&0x200) == 0x200 && --ticks);
+		while ((I2C1->CR1&0x200) == 0x200 && --ticks);
 		if (ticks == 0)	
 		{
 			sensors[i].tx_complete = 1;
@@ -641,23 +641,23 @@ void DMA1_Channel4_IRQHandler(void)
 }
 
 // I2C Rx Complete
-void DMA1_Channel5_IRQHandler(void)
+void DMA1_Channel7_IRQHandler(void)
 {
 	uint8_t i=0;
 	uint32_t ticks = I2C_TIMEOUT;
 	
-	if (DMA_GetFlagStatus(DMA1_FLAG_TC5))
+	if (DMA_GetFlagStatus(DMA1_FLAG_TC7))
 	{
 		// Clear transmission complete flag 
-		DMA_ClearFlag(DMA1_FLAG_TC5);
+		DMA_ClearFlag(DMA1_FLAG_TC7);
 		
-		I2C_DMACmd(I2C2,DISABLE);	
-		DMA_Cmd(DMA1_Channel5,DISABLE);
+		I2C_DMACmd(I2C1,DISABLE);	
+		DMA_Cmd(DMA1_Channel7,DISABLE);
 		
-		I2C_GenerateSTOP(I2C2, ENABLE);
+		I2C_GenerateSTOP(I2C1, ENABLE);
 		
 		
-		while ((I2C2->CR1&0x200) == 0x200 && --ticks);
+		while ((I2C1->CR1&0x200) == 0x200 && --ticks);
 		if (ticks == 0)	
 		{
 			sensors[i].tx_complete = 1;
@@ -685,41 +685,41 @@ void DMA1_Channel5_IRQHandler(void)
 }
 
 // I2C error
-void I2C2_ER_IRQHandler(void)
+void I2C1_ER_IRQHandler(void)
 {
 	__IO uint32_t SR1Register =0;
 
-	/* Read the I2C2 status register */
-	SR1Register = I2C2->SR1;
+	/* Read the I2C1 status register */
+	SR1Register = I2C1->SR1;
 	/* If AF = 1 */
 	if ((SR1Register & 0x0400) == 0x0400)
 	{
-		I2C2->SR1 &= 0xFBFF;
+		I2C1->SR1 &= 0xFBFF;
 		SR1Register = 0;
 	}
 	/* If ARLO = 1 */
 	if ((SR1Register & 0x0200) == 0x0200)
 	{
-		I2C2->SR1 &= 0xFBFF;
+		I2C1->SR1 &= 0xFBFF;
 		SR1Register = 0;
 	}
 	/* If BERR = 1 */
 	if ((SR1Register & 0x0100) == 0x0100)
 	{
-		I2C2->SR1 &= 0xFEFF;
+		I2C1->SR1 &= 0xFEFF;
 		SR1Register = 0;
 	}
 
 	/* If OVR = 1 */
 	if ((SR1Register & 0x0800) == 0x0800)
 	{
-		I2C2->SR1 &= 0xF7FF;
+		I2C1->SR1 &= 0xF7FF;
 		SR1Register = 0;
 	}
 		
 	// Reset I2C
-	I2C2->CR1 |= I2C_CR1_SWRST;
-	I2C2->CR1 &= ~I2C_CR1_SWRST;
+	I2C1->CR1 |= I2C_CR1_SWRST;
+	I2C1->CR1 &= ~I2C_CR1_SWRST;
 	I2C_Start();
 }
 

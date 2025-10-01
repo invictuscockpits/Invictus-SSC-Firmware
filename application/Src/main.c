@@ -59,12 +59,8 @@ int main(void)
 	// getting configuration from flash memory
 	DevConfigGet(&dev_config);
 	
-	// set default config at first startup
-	if ((dev_config.firmware_version & 0xFFF0) != (FIRMWARE_VERSION &0xFFF0))
-	{
-		DevConfigSet((dev_config_t *) &init_config);
-		DevConfigGet(&dev_config);
-	}
+
+
 	AppConfigInit(&dev_config);
 	
 	USB_HW_Init();
