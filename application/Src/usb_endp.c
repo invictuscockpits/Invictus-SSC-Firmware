@@ -134,12 +134,12 @@ void EP2_OUT_Callback(void)
 	
 	repotId = hid_buf[0];
 	
-	if (repotId == REPORT_ID_PARAM)
-	{
-		configurator_millis = GetMillis() + 30000;
-		SetEPRxStatus(ENDP2, EP_RX_VALID);
-		return;
-	}
+if (repotId == REPORT_ID_PARAM)
+{
+    configurator_millis = GetMillis() + 30000;
+    SetEPRxStatus(ENDP2, EP_RX_VALID);
+    return;
+}
 	else 
 	{
 		// 2 second delay for joy report
