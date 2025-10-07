@@ -15,7 +15,7 @@
  * under the terms of the GNU General Public License v3.0 or later:
  * https://www.gnu.org/licenses/gpl-3.0.html
  *
- * Modifications and additions are © 2025 Invictus Cockpit Systems.
+ * Modifications and additions are ï¿½ 2025 Invictus Cockpit Systems.
  *
  * This software has been carefully modified for a specific purpose.  It is not recommended for use outside of the Invictus HOTAS system.
  *

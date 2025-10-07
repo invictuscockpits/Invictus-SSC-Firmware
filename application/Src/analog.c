@@ -26,6 +26,8 @@
 
 #include <string.h>
 #include <math.h>
+#include <stdio.h>
+
 #include "stm32f10x_gpio.h"
 #include "stm32f10x_rcc.h"
 #include "stm32f10x.h"  

@@ -5,8 +5,8 @@
 		
 	* @project        Invictus HOTAS Firmware
   * @author         Invictus Cockpit Systems
-  * @version        1.0.0
-  * @date           2025-07-30
+  * @version        1.1.0
+  * @date           2025-10-06
   *
   * Based on FreeJoy firmware by Yury Vostrenkov (2020)
   * https://github.com/FreeJoy-Team/FreeJoy
@@ -104,6 +104,7 @@ void ShiftRegistersInit(dev_config_t * p_dev_config)
   */
 void ShiftRegisterRead(shift_reg_t * shift_register, uint8_t * data)
 {
+	 
 	uint8_t reg_cnt;
 	
 	if (shift_register->type == CD4021_PULL_DOWN || shift_register->type == CD4021_PULL_UP)		// positive polarity

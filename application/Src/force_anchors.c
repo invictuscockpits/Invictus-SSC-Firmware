@@ -6,8 +6,8 @@
 	*										force values that otherwise cannot be recovered.			
 	* @project        Invictus HOTAS Firmware
   * @author         Invictus Cockpit Systems
-  * @version        1.1.0
-  * @date           2025-09-06
+  * @version        1.2.0
+  * @date           2025-10-06
   *
   * Based on FreeJoy firmware by Yury Vostrenkov (2020)
   * https://github.com/FreeJoy-Team/FreeJoy

@@ -4,8 +4,8 @@
   * @brief          : This file contains the common types for the app.                  
   * @project        Invictus HOTAS Firmware
   * @author         Invictus Cockpit Systems
-  * @version        1.0.0
-  * @date           2025-07-30
+  * @version        1.1.0
+  * @date           2025-10-06
   *
   * Based on FreeJoy firmware by Yury Vostrenkov (2020)
   * https://github.com/FreeJoy-Team/FreeJoy
