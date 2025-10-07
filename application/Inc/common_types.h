@@ -14,12 +14,13 @@
   * under the terms of the GNU General Public License v3.0 or later:
   * https://www.gnu.org/licenses/gpl-3.0.html
   *
-  * Modifications and additions are © 2025 Invictus Cockpit Systems.
+  * Modifications and additions are ï¿½ 2025 Invictus Cockpit Systems.
   *
   * This software has been carefully modified for a specific purpose.  It is not recommended for use outside of the Invictus HOTAS system.
   *
   ******************************************************************************
   */
+
 
 #ifndef __COMMON_TYPES_H__
 #define __COMMON_TYPES_H__
@@ -264,7 +265,7 @@ enum
     BUTTON_ACTION_IDLE = 0,
     BUTTON_ACTION_DELAY,
     BUTTON_ACTION_PRESS,
-		BUTTON_ACTION_BLOCK,
+    BUTTON_ACTION_BLOCK,
 };
 typedef uint8_t button_action_t;
 
@@ -376,7 +377,7 @@ typedef struct
  */
 
 /*typedef enum : uint8_t {
-    FORCE_LEVEL_100 = 0,  // “Full”: 17 lbf (roll L/R, pitch down), 25 lbf (PU-digital), 40 lbf (PU-analog)
+    FORCE_LEVEL_100 = 0,  // ï¿½Fullï¿½: 17 lbf (roll L/R, pitch down), 25 lbf (PU-digital), 40 lbf (PU-analog)
     FORCE_LEVEL_75  = 1,  // e.g., 12.75 / 18.75 / 30 lbf equivalents (nonlinear handled by measured ADCs)
     FORCE_LEVEL_50  = 2,  // e.g., 8.5 / 12.5 / 20 lbf equivalents
 } force_level_t;*/
@@ -400,6 +401,7 @@ typedef struct {
  *  - Pitch Up (DIG) : 25 lbf   (digital detent path)
  *  - Pitch Up (AN)  : 40 lbf   (analog path)
  */
+#pragma pack(push, 1)
 typedef struct {
     /* housekeeping / integrity */
     uint16_t magic;     /* 0xF00C */
@@ -417,7 +419,7 @@ typedef struct {
     /* future extension space */
     uint8_t  reserved[8];
 } force_factory_anchors_t;
-
+#pragma pack(pop)
 /* Device identification info - stored separately from force anchors */
 typedef struct {
     uint16_t magic;
@@ -431,7 +433,7 @@ typedef struct {
 
 /******************** RUNTIME FORCE PROFILE (safe to reset) *******************
  * Lives in dev_config_t. If the user overwrites config without reading first,
- * only this selector changes—factory anchors remain intact on their own page.
+ * only this selector changesï¿½factory anchors remain intact on their own page.
  ******************************************************************************/
 
 typedef enum force_direction_t {
@@ -447,12 +449,14 @@ typedef struct {
     /* For each direction pick: 100/75/50 */
     uint8_t selected_level[FORCE_DIR_COUNT];  /* values from force_level_t */
 
-    /* Which pitch-up path to use in the UI when “Pitch Up” is targeted by radio:
+    /* Which pitch-up path to use in the UI when "Pitch Up" is targeted by radio:
        0 = digital (25 lbf), 1 = analog (40 lbf). */
 
     uint8_t pitch_up_mode; /* 0=digital, 1=analog */
 
-    uint8_t reserved[3];   /* align to 4 bytes total */
+    uint8_t grip_type;     /* Selected grip profile index (0=none, 1=Invictus Viper, 2=Warthog, etc.) */
+    uint8_t board_type;    /* Board type: 0=Gen1-3, 1=Gen4 */
+    uint8_t sim_software;  /* Selected simulator: 0=none, 1=DCS, 2=Falcon BMS, 3=MSFS */
 } force_profile_runtime_t;
 
 
