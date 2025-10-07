@@ -6,8 +6,8 @@
   *                   model, and manufacturing date information.
   * @project        : Invictus HOTAS Firmware
   * @author         : Invictus Cockpit Systems
-  * @version        : 1.0.0
-  * @date           : 2025-09-07
+  * @version        : 1.1.0
+  * @date           : 2025-10-06
   *
   * Based on FreeJoy firmware by Yury Vostrenkov (2020)
   * https://github.com/FreeJoy-Team/FreeJoy
@@ -16,7 +16,7 @@
   * under the terms of the GNU General Public License v3.0 or later:
   * https://www.gnu.org/licenses/gpl-3.0.html
   *
-  * Modifications and additions are © 2025 Invictus Cockpit Systems.
+  * Modifications and additions are ï¿½ 2025 Invictus Cockpit Systems.
   *
   * This software has been carefully modified for a specific purpose. It is not 
   * recommended for use outside of the Invictus HOTAS system.
@@ -110,24 +110,42 @@ uint8_t device_info_write_flash(void)
 
     
     // Write to flash
+    // IMPORTANT: DEVICE_INFO shares a page with FACTORY (force anchors at FACTORY_ADDR).
+    // We must preserve the force anchors when writing device info!
+    // Strategy: Read entire page, modify device info section, erase page, write back.
+
+    uint8_t page_buffer[FLASH_PAGE_SIZE];
+
+    // Read entire FACTORY page into buffer
+    const uint8_t *page_start = (const uint8_t*)FACTORY_ADDR;
+    for (uint16_t i = 0; i < FLASH_PAGE_SIZE; i++) {
+        page_buffer[i] = page_start[i];
+    }
+
+    // Modify the device info section in the buffer
+    const uint32_t offset = DEVICE_INFO_ADDR - FACTORY_ADDR;
+    memcpy(&page_buffer[offset], &g_device_info, sizeof(g_device_info));
+
+    // Erase and rewrite the entire page
     FLASH_Unlock();
     FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_PGERR | FLASH_FLAG_WRPRTERR);
-    
-    if (FLASH_ErasePage(DEVICE_INFO_ADDR) != FLASH_COMPLETE) {
+
+    if (FLASH_ErasePage(FACTORY_ADDR) != FLASH_COMPLETE) {
         FLASH_Lock();
         return 0;
     }
-    
-    const uint16_t *hw = (const uint16_t*)&g_device_info;
-    const uint32_t halfwords = (sizeof(g_device_info) + 1u) / 2u;
-    
-    for (uint32_t i = 0; i < halfwords; ++i) {
-        if (FLASH_ProgramHalfWord(DEVICE_INFO_ADDR + (i * 2u), hw[i]) != FLASH_COMPLETE) {
+
+    // Write back entire page as halfwords
+    const uint16_t *hw_buf = (const uint16_t*)page_buffer;
+    const uint32_t total_halfwords = FLASH_PAGE_SIZE / 2u;
+
+    for (uint32_t i = 0; i < total_halfwords; ++i) {
+        if (FLASH_ProgramHalfWord(FACTORY_ADDR + (i * 2u), hw_buf[i]) != FLASH_COMPLETE) {
             FLASH_Lock();
             return 0;
         }
     }
-    
+
     FLASH_Lock();
     return 1;
 }
