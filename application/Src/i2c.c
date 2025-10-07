@@ -1,11 +1,12 @@
 /**
   ******************************************************************************
   * @file           : i2c.c
-  * @brief          : I2C driver implementation - fixed for I2C1 on PB6/PB7
-  * @project        Invictus HOTAS Firmware
+  * @brief          : I2C driver implementation
+			
+	* @project        Invictus HOTAS Firmware
   * @author         Invictus Cockpit Systems
-  * @version        1.3.0
-  * @date           2025-09-013
+  * @version        1.4.0
+  * @date           2025-10-6
   *
   * Based on FreeJoy firmware by Yury Vostrenkov (2020)
   * https://github.com/FreeJoy-Team/FreeJoy
@@ -16,16 +17,10 @@
   *
   * Modifications and additions are © 2025 Invictus Cockpit Systems.
   *
-  * This software has been carefully modified for a specific purpose.  
-	* It is not recommended for use outside of the Invictus HOTAS system.
+  * This software has been carefully modified for a specific purpose.  It is not recommended for use outside of the Invictus HOTAS system.
   *
-  * @note           : Simplified I2C driver fixed for I2C1 on PB6/PB7 (Gen 4 board).
-  *                   Removed bus-switching logic for hardware-specific implementation.
-  *                   Supports ADS1115 ADC communication via TXS0102 level shifter.
   ******************************************************************************
   */
-
-
 
 #include "i2c.h"
 
@@ -36,11 +31,7 @@
   */
 void I2C_Start(void)
 {
-	// Ensure I2C1 uses default pins PB6/PB7 (disable remapping)
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
-	AFIO->MAPR &= ~AFIO_MAPR_I2C1_REMAP;
-	
-	RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C1, ENABLE);
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C2, ENABLE);
 	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);	
 
 	I2C_InitTypeDef I2C_InitStructure;
@@ -51,12 +42,12 @@ void I2C_Start(void)
 	I2C_InitStructure.I2C_DutyCycle = I2C_DutyCycle_16_9;
 	I2C_InitStructure.I2C_Mode = I2C_Mode_I2C;
 	I2C_InitStructure.I2C_OwnAddress1 = 0x07;	
-	I2C_Init(I2C1, &I2C_InitStructure);
-	I2C_Cmd(I2C1, ENABLE);
+	I2C_Init(I2C2,&I2C_InitStructure);
+	I2C_Cmd(I2C2,ENABLE);
 	
-	I2C_ITConfig(I2C1, I2C_IT_ERR, ENABLE);	
-	NVIC_EnableIRQ(I2C1_ER_IRQn);
-	NVIC_SetPriority(I2C1_ER_IRQn, 2);
+	I2C_ITConfig(I2C2,I2C_IT_ERR,ENABLE);	
+	NVIC_EnableIRQ (I2C2_ER_IRQn);
+	NVIC_SetPriority(I2C2_ER_IRQn,2);
 }
 
 /**
@@ -71,34 +62,34 @@ int I2C_WriteBlocking(uint8_t dev_addr, uint8_t reg_addr, uint8_t * data, uint16
 {	
 	uint32_t ticks = I2C_TIMEOUT;			// number of flag checks before stop i2c transmition 
 	
-	I2C_DMACmd(I2C1, DISABLE);
-	I2C_AcknowledgeConfig(I2C1, ENABLE);
+	I2C_DMACmd(I2C2, DISABLE);
+	I2C_AcknowledgeConfig(I2C2, ENABLE);
 	
-	I2C_GenerateSTART(I2C1, ENABLE);
-	while(!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_MODE_SELECT) && --ticks);
+	I2C_GenerateSTART(I2C2, ENABLE);
+	while(!I2C_CheckEvent(I2C2, I2C_EVENT_MASTER_MODE_SELECT) && --ticks);
 	if (ticks == 0) return -1;
 	ticks = I2C_TIMEOUT;
 	
-	I2C_Send7bitAddress(I2C1, dev_addr<<1, I2C_Direction_Transmitter);
-	while(!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED) && --ticks);
+	I2C_Send7bitAddress(I2C2, dev_addr<<1, I2C_Direction_Transmitter);
+	while(!I2C_CheckEvent(I2C2, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED) && --ticks);
 	if (ticks == 0) return -1;
 	ticks = I2C_TIMEOUT;
 	
-	I2C_SendData(I2C1, reg_addr);
-	while((!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_BYTE_TRANSMITTED)) && --ticks);
+	I2C_SendData(I2C2, reg_addr);
+	while((!I2C_CheckEvent(I2C2, I2C_EVENT_MASTER_BYTE_TRANSMITTED)) && --ticks);
 	if (ticks == 0) return -1;
 	ticks = I2C_TIMEOUT;
 		
 	for (uint16_t i=0; i<length; i++)
 	{
-		I2C_SendData(I2C1, data[i]);
-		while(!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_BYTE_TRANSMITTED) && --ticks);
+		I2C_SendData(I2C2, data[i]);
+		while(!I2C_CheckEvent(I2C2, I2C_EVENT_MASTER_BYTE_TRANSMITTED) && --ticks);
 		if (ticks == 0) return -1;
 		ticks = I2C_TIMEOUT;
 	}
 	
-	I2C_GenerateSTOP(I2C1, ENABLE);
-	while(I2C_GetFlagStatus(I2C1, I2C_FLAG_BUSY) && --ticks);
+	I2C_GenerateSTOP(I2C2, ENABLE);
+	while(I2C_GetFlagStatus(I2C2, I2C_FLAG_BUSY) && --ticks);
 	if (ticks == 0) return -1;
 	
 	return 0;
@@ -118,56 +109,56 @@ int I2C_ReadBlocking(uint8_t dev_addr, uint8_t reg_addr, uint8_t * data, uint16_
 {
 	uint32_t ticks = I2C_TIMEOUT;
 	
-	I2C_DMACmd(I2C1, DISABLE);
-	I2C_AcknowledgeConfig(I2C1, ENABLE);
+	I2C_DMACmd(I2C2, DISABLE);
+	I2C_AcknowledgeConfig(I2C2, ENABLE);
 	
-	I2C_GenerateSTART(I2C1, ENABLE);
-	while(!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_MODE_SELECT) && --ticks);
+	I2C_GenerateSTART(I2C2, ENABLE);
+	while(!I2C_CheckEvent(I2C2, I2C_EVENT_MASTER_MODE_SELECT) && --ticks);
 	if (ticks == 0) return -1;
 	ticks = I2C_TIMEOUT;
 		
-	I2C_Send7bitAddress(I2C1, dev_addr<<1, I2C_Direction_Transmitter);
-	while((!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED)) && --ticks);
+	I2C_Send7bitAddress(I2C2, dev_addr<<1, I2C_Direction_Transmitter);
+	while((!I2C_CheckEvent(I2C2, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED)) && --ticks);
 	if (ticks == 0) return -1;
 	ticks = I2C_TIMEOUT;
 
-	I2C_SendData(I2C1, reg_addr);
-	while((!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_BYTE_TRANSMITTED)) && --ticks);
+	I2C_SendData(I2C2, reg_addr);
+	while((!I2C_CheckEvent(I2C2, I2C_EVENT_MASTER_BYTE_TRANSMITTED)) && --ticks);
 	if (ticks == 0) return -1;
 	ticks = I2C_TIMEOUT;
 	
-	I2C_GenerateSTOP(I2C1, ENABLE);
-	while(I2C_GetFlagStatus(I2C1, I2C_FLAG_BUSY) && --ticks);
+	I2C_GenerateSTOP(I2C2, ENABLE);
+	while(I2C_GetFlagStatus(I2C2, I2C_FLAG_BUSY) && --ticks);
 	if (ticks == 0) return -1;
 	ticks = I2C_TIMEOUT;
 	
-	I2C_GenerateSTART(I2C1, ENABLE);
-	while((!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_MODE_SELECT)) && --ticks);
+	I2C_GenerateSTART(I2C2, ENABLE);
+	while((!I2C_CheckEvent(I2C2, I2C_EVENT_MASTER_MODE_SELECT)) && --ticks);
 	if (ticks == 0) return -1;
 	ticks = I2C_TIMEOUT;
 	
-	I2C_Send7bitAddress(I2C1, dev_addr<<1, I2C_Direction_Receiver);
-	while((!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_RECEIVER_MODE_SELECTED)) && --ticks);
+	I2C_Send7bitAddress(I2C2, dev_addr<<1, I2C_Direction_Receiver);
+	while((!I2C_CheckEvent(I2C2, I2C_EVENT_MASTER_RECEIVER_MODE_SELECTED)) && --ticks);
 	if (ticks == 0) return -1;
 	ticks = I2C_TIMEOUT;
 	
 	for (uint8_t i=0; i<length; i++)
 	{		
-		while((!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_BYTE_RECEIVED)) && --ticks);
+		while((!I2C_CheckEvent(I2C2, I2C_EVENT_MASTER_BYTE_RECEIVED)) && --ticks);
 		if (ticks == 0) return -1;
 		ticks = I2C_TIMEOUT;
 		
-		data[i] = I2C1->DR;
+		data[i] = I2C2->DR;
 		
 		if (nack && i == length - 2) 
 		{
-			I2C_AcknowledgeConfig(I2C1, DISABLE);
-			I2C_NACKPositionConfig(I2C1, I2C_NACKPosition_Current);
+			I2C_AcknowledgeConfig(I2C2, DISABLE);
+			I2C_NACKPositionConfig(I2C2, I2C_NACKPosition_Current);
 		}
 	}
 	
-	I2C_GenerateSTOP(I2C1, ENABLE);
-	while(I2C_GetFlagStatus(I2C1, I2C_FLAG_BUSY) && --ticks);
+	I2C_GenerateSTOP(I2C2, ENABLE);
+	while(I2C_GetFlagStatus(I2C2, I2C_FLAG_BUSY) && --ticks);
 	if (ticks == 0) return -1;
 	
 	return 0;
@@ -188,7 +179,7 @@ int I2C_WriteNonBlocking(uint8_t dev_addr, uint8_t * data, uint16_t length)
 		
 	DMA_InitStructure.DMA_MemoryBaseAddr = (uint32_t) data;
 	DMA_InitStructure.DMA_BufferSize = length;
-	DMA_InitStructure.DMA_PeripheralBaseAddr = (uint32_t) &I2C1->DR;
+	DMA_InitStructure.DMA_PeripheralBaseAddr = (uint32_t) &I2C2->DR;
 	DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralDST;
 	DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;
 	DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;
@@ -197,35 +188,35 @@ int I2C_WriteNonBlocking(uint8_t dev_addr, uint8_t * data, uint16_t length)
 	DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
 	DMA_InitStructure.DMA_Mode = DMA_Mode_Normal;
 	DMA_InitStructure.DMA_Priority = DMA_Priority_Medium;
-	DMA_Init(DMA1_Channel6, &DMA_InitStructure);
+	DMA_Init(DMA1_Channel4, &DMA_InitStructure);
 	
-	DMA_ITConfig(DMA1_Channel6, DMA_IT_TC, ENABLE);
-	NVIC_SetPriority(DMA1_Channel6_IRQn, 2);
-	NVIC_EnableIRQ(DMA1_Channel6_IRQn);
+	DMA_ITConfig(DMA1_Channel4, DMA_IT_TC, ENABLE);
+	NVIC_SetPriority(DMA1_Channel4_IRQn, 2);
+	NVIC_EnableIRQ(DMA1_Channel4_IRQn);
 	
 	// wait a bit if I2C is busy
-	while(I2C_GetFlagStatus(I2C1, I2C_FLAG_BUSY) && --ticks);
+	while(I2C_GetFlagStatus(I2C2, I2C_FLAG_BUSY) && --ticks);
 	if (ticks == 0) 
 	{
-		I2C1->CR1 |= I2C_CR1_SWRST;
-		I2C1->CR1 &= ~I2C_CR1_SWRST;
+		I2C2->CR1 |= I2C_CR1_SWRST;
+		I2C2->CR1 &= ~I2C_CR1_SWRST;
 		I2C_Start();
 		//return -1;
 	}
 	ticks = I2C_TIMEOUT;
 	
 	// Start DMA
-	DMA_Cmd(DMA1_Channel6, ENABLE);
-  I2C_DMACmd(I2C1, ENABLE);
+	DMA_Cmd(DMA1_Channel4, ENABLE);
+  I2C_DMACmd(I2C2, ENABLE);
 	
 	// Generate start signal
-	I2C_GenerateSTART(I2C1, ENABLE);
-	while(!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_MODE_SELECT) && --ticks);
+	I2C_GenerateSTART(I2C2, ENABLE);
+	while(!I2C_CheckEvent(I2C2, I2C_EVENT_MASTER_MODE_SELECT) && --ticks);
 	if (ticks == 0) return -1;
 	ticks = I2C_TIMEOUT;
 	
-	I2C_Send7bitAddress(I2C1, dev_addr<<1, I2C_Direction_Transmitter);
-	while(!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED) && --ticks);
+	I2C_Send7bitAddress(I2C2, dev_addr<<1, I2C_Direction_Transmitter);
+	while(!I2C_CheckEvent(I2C2, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED) && --ticks);
 	if (ticks == 0) return -1;
 	ticks = I2C_TIMEOUT;
 	
@@ -247,16 +238,16 @@ int I2C_ReadNonBlocking(uint8_t dev_addr, uint8_t reg_addr, uint8_t * data, uint
 	uint32_t ticks = I2C_TIMEOUT;			// number of flag checks before stop i2c transmition 
 
 	// disable DMA
-	I2C_DMACmd(I2C1, DISABLE);
-	DMA_Cmd(DMA1_Channel7, DISABLE);
-	while (DMA1_Channel7->CCR & (1<<0));
+	I2C_DMACmd(I2C2, DISABLE);
+	DMA_Cmd(DMA1_Channel5, DISABLE);
+	while (DMA1_Channel5->CCR & (1<<0));
 	// clear flags
-	DMA_ClearFlag(DMA1_FLAG_GL7|DMA1_FLAG_HT7|DMA1_FLAG_TC7|DMA1_FLAG_TE7);	
+	DMA_ClearFlag(DMA1_FLAG_GL5|DMA1_FLAG_HT5|DMA1_FLAG_TC5|DMA1_FLAG_TE5);	
 	
 	DMA_InitTypeDef DMA_InitStructure;
 	DMA_InitStructure.DMA_MemoryBaseAddr = (uint32_t) data;
 	DMA_InitStructure.DMA_BufferSize = length;
-	DMA_InitStructure.DMA_PeripheralBaseAddr = (uint32_t) &I2C1->DR;
+	DMA_InitStructure.DMA_PeripheralBaseAddr = (uint32_t) &I2C2->DR;
 	DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralSRC;
 	DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;
 	DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;
@@ -265,60 +256,67 @@ int I2C_ReadNonBlocking(uint8_t dev_addr, uint8_t reg_addr, uint8_t * data, uint
 	DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
 	DMA_InitStructure.DMA_Mode = DMA_Mode_Normal;
 	DMA_InitStructure.DMA_Priority = DMA_Priority_Medium;
-	DMA_Init(DMA1_Channel7, &DMA_InitStructure);
+	DMA_Init(DMA1_Channel5, &DMA_InitStructure);
 	
-	DMA_ITConfig(DMA1_Channel7, DMA_IT_TC, ENABLE);
-	NVIC_SetPriority(DMA1_Channel7_IRQn, 2);
-	NVIC_EnableIRQ(DMA1_Channel7_IRQn);
+	DMA_ITConfig(DMA1_Channel5, DMA_IT_TC, ENABLE);
+	NVIC_SetPriority(DMA1_Channel5_IRQn, 2);
+	NVIC_EnableIRQ(DMA1_Channel5_IRQn);
 	
 	// wait a bit if I2C is busy
-	while(I2C_GetFlagStatus(I2C1, I2C_FLAG_BUSY) && --ticks);
+	while(I2C_GetFlagStatus(I2C2, I2C_FLAG_BUSY) && --ticks);
 	if (ticks == 0) 
 	{
-		I2C1->CR1 |= I2C_CR1_SWRST;
-		I2C1->CR1 &= ~I2C_CR1_SWRST;
+		I2C2->CR1 |= I2C_CR1_SWRST;
+		I2C2->CR1 &= ~I2C_CR1_SWRST;
 		I2C_Start();
 		//return -1;
 	}
 	ticks = I2C_TIMEOUT;
 
   // Enable DMA NACK automatic generation
-	if (nack)	I2C_DMALastTransferCmd(I2C1, ENABLE);
+	if (nack)	I2C_DMALastTransferCmd(I2C2, ENABLE);
  
-	I2C_GenerateSTART(I2C1, ENABLE);
-	while(!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_MODE_SELECT) && --ticks);			// EV5
+	I2C_GenerateSTART(I2C2, ENABLE);
+	while(!I2C_CheckEvent(I2C2, I2C_EVENT_MASTER_MODE_SELECT) && --ticks);			// EV5
 	if (ticks == 0) return -1;
 	ticks = I2C_TIMEOUT;
 	
-	I2C_Send7bitAddress(I2C1, dev_addr << 1, I2C_Direction_Transmitter);
-	while(!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED) && --ticks);			// EV6
+	I2C_Send7bitAddress(I2C2, dev_addr << 1, I2C_Direction_Transmitter);
+	while(!I2C_CheckEvent(I2C2, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED) && --ticks);			// EV6
 	if (ticks == 0) return -1;
 	
 	// Clear EV6 by setting again the PE bit
-  I2C_Cmd(I2C1, ENABLE);
+  I2C_Cmd(I2C2, ENABLE);
 	
-	I2C_SendData(I2C1, reg_addr);
-	while((!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_BYTE_TRANSMITTED)) && --ticks);
+	I2C_SendData(I2C2, reg_addr);
+	while((!I2C_CheckEvent(I2C2, I2C_EVENT_MASTER_BYTE_TRANSMITTED)) && --ticks);
 	if (ticks == 0) return -1;
 	ticks = I2C_TIMEOUT;
 	
-	I2C_GenerateSTOP(I2C1, ENABLE);
-	while(I2C_GetFlagStatus(I2C1, I2C_FLAG_BUSY) && --ticks);
+	I2C_GenerateSTOP(I2C2, ENABLE);
+	while(I2C_GetFlagStatus(I2C2, I2C_FLAG_BUSY) && --ticks);
 	if (ticks == 0) return -1;
 	
 	// Start reading conversion register in non-blocking mode	
-	I2C_DMACmd(I2C1, ENABLE);
-	DMA_Cmd(DMA1_Channel7, ENABLE);
+	I2C_DMACmd(I2C2,ENABLE);
+	DMA_Cmd(DMA1_Channel5,ENABLE);
 	
-	I2C_GenerateSTART(I2C1, ENABLE);
-	while((!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_MODE_SELECT)) && --ticks);
+	I2C_GenerateSTART(I2C2, ENABLE);
+	while((!I2C_CheckEvent(I2C2, I2C_EVENT_MASTER_MODE_SELECT)) && --ticks);
 	if (ticks == 0) return -1;
 	ticks = I2C_TIMEOUT;
 	
-	I2C_Send7bitAddress(I2C1, dev_addr << 1, I2C_Direction_Receiver);
-	while((!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_RECEIVER_MODE_SELECTED)) && --ticks);
+	I2C_Send7bitAddress(I2C2, dev_addr << 1, I2C_Direction_Receiver);
+	while((!I2C_CheckEvent(I2C2, I2C_EVENT_MASTER_RECEIVER_MODE_SELECTED)) && --ticks);
 	if (ticks == 0) return -1;
 	ticks = I2C_TIMEOUT;
 	
 	return 0;
 }
+
+
+
+
+
+
+
