@@ -5,8 +5,8 @@
 	
 	* @project        Invictus HOTAS Firmware
   * @author         Invictus Cockpit Systems
-  * @version        1.0.0
-  * @date           2025-07-30
+  * @version        1.1.0
+  * @date           2025-10-25
   *
   * Based on FreeJoy firmware by Yury Vostrenkov (2020)
   * https://github.com/FreeJoy-Team/FreeJoy
@@ -15,7 +15,7 @@
   * under the terms of the GNU General Public License v3.0 or later:
   * https://www.gnu.org/licenses/gpl-3.0.html
   *
-  * Modifications and additions are © 2025 Invictus Cockpit Systems.
+  * Modifications and additions are ï¿½ 2025 Invictus Cockpit Systems.
   *
   * This software has been carefully modified for a specific purpose.  It is not recommended for use outside of the Invictus HOTAS system.
   *
@@ -342,9 +342,9 @@ void IO_Init (dev_config_t * p_dev_config)
 		Delay_ms(300);
 	}
 	
-	// Reset GPIO
+	// Reset GPIO (preserve USB pins PA11/PA12)
 	GPIOA->CRL=0x44444444;
-	GPIOA->CRH=0x44444444;
+	GPIOA->CRH=0x44BB4444;  // 0xB preserves PA11/PA12 as AF output for USB
 	GPIOA->ODR=0x0;
 	GPIOB->CRL=0x44444444;
 	GPIOB->CRH=0x44444444;
@@ -521,6 +521,8 @@ void IO_Init (dev_config_t * p_dev_config)
 		}
 		
 	}
+
+
 
 #ifdef DEBUG
     GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;

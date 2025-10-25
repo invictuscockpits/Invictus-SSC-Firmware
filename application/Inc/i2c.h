@@ -47,7 +47,7 @@ extern "C" {
 
 /**
  * @brief Auto-select I2C bus by inspecting configured pins array.
- *        If PB6==I2C_SCL and PB7==I2C_SDA -> selects I2C1, else I2C2.
+ *        If PB10==I2C_SCL and PB11==I2C_SDA -> selects I2C2, else I2C1.
  * @param pins  pointer to array of pin function enums (config.pins[])
  * @param count length of the pins array
  */

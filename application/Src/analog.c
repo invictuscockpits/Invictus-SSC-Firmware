@@ -5,8 +5,8 @@
 		
 	* @project        Invictus HOTAS Firmware
   * @author         Invictus Cockpit Systems
-  * @version        1.0.0
-  * @date           2025-07-30
+  * @version        1.1.0
+  * @date           2025-10-25
   *
   * Based on FreeJoy firmware by Yury Vostrenkov (2020)
   * https://github.com/FreeJoy-Team/FreeJoy
@@ -15,7 +15,7 @@
   * under the terms of the GNU General Public License v3.0 or later:
   * https://www.gnu.org/licenses/gpl-3.0.html
   *
-  * Modifications and additions are © 2025 Invictus Cockpit Systems.
+  * Modifications and additions are ï¿½ 2025 Invictus Cockpit Systems.
   *
   * This software has been carefully modified for a specific purpose.  It is not recommended for use outside of the Invictus HOTAS system.
   *
@@ -569,7 +569,7 @@ void AxesInit (dev_config_t * p_dev_config)
 		}
 	}
 
-	if (p_dev_config->pins[17] == (I2C_SCL) && p_dev_config->pins[18] == (I2C_SDA)) //corrected to PB6 and PB7 respectively
+	if (p_dev_config->pins[21] == (I2C_SCL) && p_dev_config->pins[22] == (I2C_SDA)) //pins[21]=PB10 (I2C2_SCL), pins[22]=PB11 (I2C2_SDA)
 	{
 		// look for ADS1115 sensors with different addresses
 		for (uint8_t addr = ADS1115_I2C_ADDR_MIN; addr <= ADS1115_I2C_ADDR_MAX; addr ++)
@@ -583,8 +583,7 @@ void AxesInit (dev_config_t * p_dev_config)
 						sensors[sensors_cnt].address = p_dev_config->axis_config[k].i2c_address;
 						sensors[sensors_cnt].type = ADS1115;
 						sensors[sensors_cnt].source = (pin_t) SOURCE_I2C;
-						
-						
+
 						ADS1115_Init(&sensors[sensors_cnt]);
 						sensors_cnt++;
 						break;
@@ -606,7 +605,8 @@ void AxesInit (dev_config_t * p_dev_config)
 					uint16_t calib_min = map2(p_dev_config->axis_config[k].calib_min, AXIS_MIN_VALUE, AXIS_MAX_VALUE, 0, 4095);
 					uint16_t calib_max = map2(p_dev_config->axis_config[k].calib_max, AXIS_MIN_VALUE, AXIS_MAX_VALUE, 0, 4095);
 					
-					AS5600_Init(&sensors[sensors_cnt], calib_min, calib_max);						
+					// COMMENTED OUT: Blocking I2C init causes disconnect if AS5600 not physically present
+				//AS5600_Init(&sensors[sensors_cnt], calib_min, calib_max);						
 					sensors_cnt++;						
 					break;
 				}

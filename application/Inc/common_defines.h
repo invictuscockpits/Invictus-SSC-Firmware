@@ -4,8 +4,8 @@
   * @brief          : This file contains the common defines for the app.                  
   * @project        Invictus HOTAS Firmware
   * @author         Invictus Cockpit Systems
-  * @version        1.2.3
-  * @date           2025-10-06
+  * @version        1.2.4
+  * @date           2025-10-24
   *
   * Based on FreeJoy firmware by Yury Vostrenkov (2020)
   * https://github.com/FreeJoy-Team/FreeJoy
@@ -34,7 +34,7 @@
 
 //#define DEBUG
 
-#define FIRMWARE_VERSION					0x2142    // v2.1.34 (Modifying I2C for communicating with Gen 4 Boards) Also movedconfig address
+#define FIRMWARE_VERSION					0x2153    // v2.1.5.3 (Modifying I2C for communicating with Gen 4 Boards) 
 #define USED_PINS_NUM							30				// Contstant for HOTAS Control boards
 #define MAX_AXIS_NUM							8					// max 8
 #define MAX_BUTTONS_NUM						128				// power of 2, max 128

@@ -3,8 +3,8 @@
   * @file    Project/STM32F10x_StdPeriph_Template/stm32f10x_it.c 
   * @project        Invictus HOTAS Firmware
  * @author         Invictus Cockpit Systems
- * @version        1.2.0
- * @date           2025-10-25
+ * @version        1.1.0
+ * @date           2025-10-06
  *
  * Based on FreeJoy firmware by Yury Vostrenkov (2020)
  * https://github.com/FreeJoy-Team/FreeJoy
@@ -313,8 +313,9 @@ void TIM2_IRQHandler(void)
 			
 			// Disable periphery before ADC conversion
 			RCC_APB2PeriphClockCmd(RCC_APB2Periph_SPI1,DISABLE);	
-			RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C2|RCC_APB1Periph_TIM4, DISABLE);
-		  RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB|RCC_APB2Periph_GPIOC,DISABLE);
+			// COMMENTED OUT: May cause I2C communication issues with PB10/PB11 pins
+		//RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C2|RCC_APB1Periph_TIM4, DISABLE);
+			//RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB|RCC_APB2Periph_GPIOC,DISABLE);
 			
 			if (tmp_app_config.fast_encoder_cnt == 0)
 			{
@@ -329,10 +330,10 @@ void TIM2_IRQHandler(void)
 			ADC_Conversion();
 			
 			// Enable periphery after ADC conversion
-      RCC_APB2PeriphClockCmd(RCC_APB2Periph_SPI1,ENABLE);
-      RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C2|RCC_APB1Periph_TIM3|RCC_APB1Periph_TIM4, ENABLE);
-      RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB|RCC_APB2Periph_GPIOC|RCC_APB2Periph_TIM1,ENABLE);
-
+			RCC_APB2PeriphClockCmd(RCC_APB2Periph_SPI1,ENABLE);	
+			// Re-enable timers (but NOT I2C2 or GPIO ports)
+		RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM3|RCC_APB1Periph_TIM4, ENABLE);
+			RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM1,ENABLE);
 		}
 		// External sensors data receiption
 		if (Ticks - sensors_ticks >= SENSORS_PERIOD_TICKS && Ticks > adc_ticks +1)		// prevent ADC and sensors reading during same ms

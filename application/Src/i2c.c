@@ -5,8 +5,8 @@
 			
 	* @project        Invictus HOTAS Firmware
   * @author         Invictus Cockpit Systems
-  * @version        1.4.0
-  * @date           2025-10-6
+  * @version        1.5.0
+  * @date           2025-10-25
   *
   * Based on FreeJoy firmware by Yury Vostrenkov (2020)
   * https://github.com/FreeJoy-Team/FreeJoy
@@ -15,7 +15,7 @@
   * under the terms of the GNU General Public License v3.0 or later:
   * https://www.gnu.org/licenses/gpl-3.0.html
   *
-  * Modifications and additions are © 2025 Invictus Cockpit Systems.
+  * Modifications and additions are ï¿½ 2025 Invictus Cockpit Systems.
   *
   * This software has been carefully modified for a specific purpose.  It is not recommended for use outside of the Invictus HOTAS system.
   *
@@ -45,7 +45,7 @@ void I2C_Start(void)
 	I2C_Init(I2C2,&I2C_InitStructure);
 	I2C_Cmd(I2C2,ENABLE);
 	
-	I2C_ITConfig(I2C2,I2C_IT_ERR,ENABLE);	
+	I2C_ITConfig(I2C2,I2C_IT_ERR,ENABLE);
 	NVIC_EnableIRQ (I2C2_ER_IRQn);
 	NVIC_SetPriority(I2C2_ER_IRQn,2);
 }
