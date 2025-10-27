@@ -140,6 +140,22 @@ bool force_anchors_lock(void)
     return force_anchors_valid(FA_ptr()) && FA_ptr()->sealed == 1;
 }
 
+bool force_anchors_unlock(void)
+{
+    const force_factory_anchors_t *flash = FA_ptr();
+    if (!force_anchors_valid(flash)) return false;
+    if (!flash->sealed) return true;  // already unsealed
+
+    force_factory_anchors_t w;
+    memcpy(&w, flash, sizeof(w));
+    w.sealed = 0;
+    w.crc32  = 0;
+    w.crc32  = crc32_le(&w, sizeof(w));
+
+    if (!flash_write_factory(&w)) return false;
+    return force_anchors_valid(FA_ptr()) && FA_ptr()->sealed == 0;
+}
+
 
 bool force_anchors_handle_op(uint8_t op,
                              const uint8_t *in_payload, uint8_t in_len,
@@ -179,6 +195,15 @@ bool force_anchors_handle_op(uint8_t op,
         return true;
     }
 
-   
-	}
+    case OP_UNLOCK_FACTORY_ANCHORS: {
+        bool ok = force_anchors_unlock();
+        out_buf[0] = ok ? 1 : 0;
+        *out_len = 1;
+        return true;
+    }
+
+    default:
+        return false;
+    }
+    return false;
 }
