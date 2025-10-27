@@ -584,7 +584,7 @@ void AxesInit (dev_config_t * p_dev_config)
 						sensors[sensors_cnt].type = ADS1115;
 						sensors[sensors_cnt].source = (pin_t) SOURCE_I2C;
 
-						ADS1115_Init(&sensors[sensors_cnt]);
+						ADS1115_Init(&sensors[sensors_cnt], p_dev_config);
 						sensors_cnt++;
 						break;
 					}

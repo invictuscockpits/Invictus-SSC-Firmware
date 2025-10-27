@@ -674,7 +674,7 @@ void DMA1_Channel5_IRQHandler(void)
 				{
 					// set mux to next channel
 					uint8_t channel = (sensors[i].curr_channel < 3) ? (sensors[i].curr_channel + 1) : 0;
-					status = ADS1115_SetMuxDMA(&sensors[i], channel);
+					status = ADS1115_SetMuxDMA(&sensors[i], channel, &dev_config);
 				}
 			}
 		}

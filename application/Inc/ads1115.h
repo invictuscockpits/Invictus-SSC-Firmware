@@ -14,7 +14,7 @@
   * under the terms of the GNU General Public License v3.0 or later:
   * https://www.gnu.org/licenses/gpl-3.0.html
   *
-  * Modifications and additions are © 2025 Invictus Cockpit Systems.
+  * Modifications and additions are ï¿½ 2025 Invictus Cockpit Systems.
   *
   * This software has been carefully modified for a specific purpose.  It is not recommended for use outside of the Invictus HOTAS system.
   *
@@ -31,14 +31,14 @@
 #define ADS1115_I2C_ADDR_MIN				0x48
 #define ADS1115_I2C_ADDR_MAX				0x4B
 
-void ADS1115_Init(sensor_t * sensor);
+void ADS1115_Init(sensor_t * sensor, dev_config_t * p_dev_config);
 int16_t ADS1115_GetData(sensor_t * sensor, uint8_t channel);
 
 int ADS1115_ReadBlocking(sensor_t * sensor, uint8_t channel);
-int ADS1115_SetMuxBlocking(sensor_t * sensor, uint8_t channel);
+int ADS1115_SetMuxBlocking(sensor_t * sensor, uint8_t channel, dev_config_t * p_dev_config);
 
 int ADS1115_StartDMA(sensor_t * sensor, uint8_t channel);
-int ADS1115_SetMuxDMA(sensor_t * sensor, uint8_t channel);
+int ADS1115_SetMuxDMA(sensor_t * sensor, uint8_t channel, dev_config_t * p_dev_config);
 
 #endif 	/* __ADS1115_H__ */
 
