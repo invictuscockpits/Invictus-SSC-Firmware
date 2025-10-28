@@ -30,17 +30,10 @@
 
 #include "stm32f10x_gpio.h"
 #include "stm32f10x_rcc.h"
-#include "stm32f10x.h"  
-#include "tle5011.h"
-#include "tle5012.h"
+#include "stm32f10x.h"
 #include "mcp320x.h"
-#include "mlx90363.h"
-#include "mlx90393.h"
-#include "as5048a.h"
 #include "ads1115.h"
-#include "as5600.h"
 #include "buttons.h"
-#include "encoders.h"
 
 #define CENTER_LED_RANGE 125 //ADC Count deviation allowace for Centered Axis LEDs to be lit
 
@@ -445,45 +438,6 @@ void AxesInit (dev_config_t * p_dev_config)
 				}
 			}
 		}
-		else if (p_dev_config->pins[i] == TLE5011_CS)
-		{
-			for (uint8_t k=0; k<MAX_AXIS_NUM; k++)
-			{
-				if (p_dev_config->axis_config[k].source_main == i && sensors_cnt < MAX_AXIS_NUM)
-				{
-					sensors[sensors_cnt].type = TLE5011;			
-					sensors[sensors_cnt].source = i;
-					sensors_cnt++;
-					break;
-				}
-			}
-		}
-		else if (p_dev_config->pins[i] == TLE5012_CS)
-		{
-			for (uint8_t k=0; k<MAX_AXIS_NUM; k++)
-			{
-				if (p_dev_config->axis_config[k].source_main == i && sensors_cnt < MAX_AXIS_NUM)
-				{
-					sensors[sensors_cnt].type = TLE5012;			
-					sensors[sensors_cnt].source = i;
-					sensors_cnt++;
-					break;
-				}
-			}
-		}
-		else if (p_dev_config->pins[i] == MCP3201_CS)
-		{
-			for (uint8_t k=0; k<MAX_AXIS_NUM; k++)
-			{
-				if (p_dev_config->axis_config[k].source_main == i && sensors_cnt < MAX_AXIS_NUM)
-				{
-					sensors[sensors_cnt].type = MCP3201;			
-					sensors[sensors_cnt].source = i;
-					sensors_cnt++;
-					break;
-				}
-			}
-		}
 		else if (p_dev_config->pins[i] == MCP3202_CS)
 		{
 			for (uint8_t k=0; k<MAX_AXIS_NUM; k++)
@@ -492,76 +446,6 @@ void AxesInit (dev_config_t * p_dev_config)
 				{
 					sensors[sensors_cnt].type = MCP3202;	
 					sensors[sensors_cnt].source = i;
-					sensors_cnt++;
-					break;
-				}
-			}
-		}
-		else if (p_dev_config->pins[i] == MCP3204_CS)
-		{
-			for (uint8_t k=0; k<MAX_AXIS_NUM; k++)
-			{
-				if (p_dev_config->axis_config[k].source_main == i && sensors_cnt < MAX_AXIS_NUM)
-				{
-					sensors[sensors_cnt].type = MCP3204;				
-					sensors[sensors_cnt].source = i;
-					sensors_cnt++;
-					break;
-				}
-			}
-		}
-		else if (p_dev_config->pins[i] == MCP3208_CS)
-		{
-			for (uint8_t k=0; k<MAX_AXIS_NUM; k++)
-			{
-				if (p_dev_config->axis_config[k].source_main == i && sensors_cnt < MAX_AXIS_NUM)
-				{
-					sensors[sensors_cnt].type = MCP3208;	
-					sensors[sensors_cnt].source = i;
-					sensors_cnt++;
-					break;
-				}
-			}
-		}
-		else if (p_dev_config->pins[i] == MLX90363_CS)
-		{
-			for (uint8_t k = 0; k < MAX_AXIS_NUM; k++)
-			{
-				if (p_dev_config->axis_config[k].source_main == i && sensors_cnt < MAX_AXIS_NUM)
-				{
-					sensors[sensors_cnt].type = MLX90363;
-					sensors[sensors_cnt].source = i;
-
-					MLX90363_Start(&sensors[sensors_cnt]);
-					sensors_cnt++;
-					break;
-				}
-			}
-		}
-		else if (p_dev_config->pins[i] == MLX90393_CS)
-		{
-			for (uint8_t k=0; k<MAX_AXIS_NUM; k++)
-			{
-				if (p_dev_config->axis_config[k].source_main == i && sensors_cnt < MAX_AXIS_NUM)
-				{
-					sensors[sensors_cnt].type = MLX90393_SPI;
-					sensors[sensors_cnt].source = i;
-					
-					MLX90393_Start(MLX_SPI, &sensors[sensors_cnt]);
-					sensors_cnt++;
-					break;
-				}
-			}
-		}
-		else if (p_dev_config->pins[i] == AS5048A_CS)
-		{
-			for (uint8_t k=0; k<MAX_AXIS_NUM; k++)
-			{
-				if (p_dev_config->axis_config[k].source_main == i && sensors_cnt < MAX_AXIS_NUM)
-				{
-					sensors[sensors_cnt].type = AS5048A_SPI;
-					sensors[sensors_cnt].source = i;
-					
 					sensors_cnt++;
 					break;
 				}
@@ -588,27 +472,6 @@ void AxesInit (dev_config_t * p_dev_config)
 						sensors_cnt++;
 						break;
 					}
-				}
-			}
-		}
-		// look for AS5600
-		for (uint8_t k=0; k<MAX_AXIS_NUM; k++)
-		{
-			if (p_dev_config->axis_config[k].source_main == (pin_t) SOURCE_I2C)
-			{
-				if ((p_dev_config->axis_config[k].i2c_address) == AS5600_I2C_ADDR)
-				{
-					sensors[sensors_cnt].address = p_dev_config->axis_config[k].i2c_address;
-					sensors[sensors_cnt].type = AS5600;
-					sensors[sensors_cnt].source = (pin_t) SOURCE_I2C;
-					
-					uint16_t calib_min = map2(p_dev_config->axis_config[k].calib_min, AXIS_MIN_VALUE, AXIS_MAX_VALUE, 0, 4095);
-					uint16_t calib_max = map2(p_dev_config->axis_config[k].calib_max, AXIS_MIN_VALUE, AXIS_MAX_VALUE, 0, 4095);
-					
-					// COMMENTED OUT: Blocking I2C init causes disconnect if AS5600 not physically present
-				//AS5600_Init(&sensors[sensors_cnt], calib_min, calib_max);						
-					sensors_cnt++;						
-					break;
 				}
 			}
 		}
@@ -799,68 +662,7 @@ void AxesProcess (dev_config_t * p_dev_config)
 				}		
 				raw_axis_data[i] = map2(tmp[i], 0, 4095, AXIS_MIN_VALUE, AXIS_MAX_VALUE);
 			}
-			else if (p_dev_config->pins[source] == TLE5011_CS)			// source TLE5011
-			{
-				tmpf = 0;
-				uint8_t k=0;
-				// search for needed sensor
-				for (k=0; k<MAX_AXIS_NUM; k++)
-				{
-					if (sensors[k].source == source) break;
-				}
-				// get angle data
-				if (TLE5011_GetAngle(&sensors[k], &tmpf) == 0)
-				{
-					sensors[k].ok_cnt++;
-					
-					if (p_dev_config->axis_config[i].offset_angle > 0)
-					{
-						tmpf -= p_dev_config->axis_config[i].offset_angle * 15;
-						if (tmpf < -180) tmpf += 360;
-						else if (tmpf > 180) tmpf -= 360;
-					}
-					
-					tmpf *= 1000;
-					raw_axis_data[i] = map_tle(tmpf);
-				}
-				else
-				{
-					sensors[k].err_cnt++;
-				}
-			}
-			else if (p_dev_config->pins[source] == TLE5012_CS)			// source TLE5012
-			{
-				tmpf = 0;
-				uint8_t k=0;
-				// search for needed sensor
-				for (k=0; k<MAX_AXIS_NUM; k++)
-				{
-					if (sensors[k].source == source) break;
-				}
-				// get angle data
-				if (TLE5012_GetAngle(&sensors[k], &tmpf) == 0)
-				{
-					sensors[k].ok_cnt++;
-					
-					if (p_dev_config->axis_config[i].offset_angle > 0)
-					{
-						tmpf -= p_dev_config->axis_config[i].offset_angle * 15;
-						if (tmpf < -180) tmpf += 360;
-						else if (tmpf > 180) tmpf -= 360;
-					}
-					
-					tmpf *= 1000;
-					raw_axis_data[i] = map_tle(tmpf);
-				}
-				else
-				{
-					sensors[k].err_cnt++;
-				}
-			}
-			else if (p_dev_config->pins[source] == MCP3201_CS ||
-							 p_dev_config->pins[source] == MCP3202_CS ||
-							 p_dev_config->pins[source] == MCP3204_CS ||
-							 p_dev_config->pins[source] == MCP3208_CS)				// source MCP320x
+			else if (p_dev_config->pins[source] == MCP3202_CS)				// source MCP3202
 			{
 				uint8_t k=0;
 				// search for needed sensor
@@ -881,93 +683,7 @@ void AxesProcess (dev_config_t * p_dev_config)
 				}
 				raw_axis_data[i] = map2(tmp[i], 0, 4095, AXIS_MIN_VALUE, AXIS_MAX_VALUE);
 			}
-			else if (p_dev_config->pins[source] == MLX90363_CS)				// source MLX90363
-			{
-				uint8_t k = 0;
-				uint16_t tmp16 = 0;
-				// search for needed sensor
-				for (k = 0; k < MAX_AXIS_NUM; k++)
-				{
-					if (sensors[k].source == source) break;
-				}
-				if (MLX90363_GetData(&tmp16, &sensors[k], channel) == 0)
-				{
-					sensors[k].ok_cnt++;
-
-					if (p_dev_config->axis_config[i].offset_angle > 0)	// offset enabled
-					{
-						raw_axis_data[i] = tmp16 - p_dev_config->axis_config[i].offset_angle * 2730;
-						if (raw_axis_data[i] < AXIS_MIN_VALUE) raw_axis_data[i] += AXIS_FULLSCALE;
-						else if (raw_axis_data[i] > AXIS_MAX_VALUE) raw_axis_data[i] -= AXIS_FULLSCALE;		// always false
-					}
-					else
-					{
-						raw_axis_data[i] = tmp16;
-					}
-				}
-				else
-				{
-					sensors[k].err_cnt++;
-				}
-			}
-			else if (p_dev_config->pins[source] == MLX90393_CS)				// source MLX90393
-			{
-				uint8_t k = 0;
-				uint16_t tmp16 = 0;
-				// search for needed sensor
-				for (k=0; k<MAX_AXIS_NUM; k++)
-				{
-					if (sensors[k].source == source) break;
-				}
-				if (MLX90393_GetData(&tmp16, &sensors[k], channel) == 0)
-				{
-					sensors[k].ok_cnt++;
-					
-					if (p_dev_config->axis_config[i].offset_angle > 0)	// offset enabled
-					{
-						raw_axis_data[i] = tmp16 - p_dev_config->axis_config[i].offset_angle * 2730;
-						if (raw_axis_data[i] < AXIS_MIN_VALUE) raw_axis_data[i] += AXIS_FULLSCALE;
-						else if (raw_axis_data[i] > AXIS_MAX_VALUE) raw_axis_data[i] -= AXIS_FULLSCALE;		// always false
-					}
-					else
-					{
-						raw_axis_data[i] = tmp16;
-					}
-				}
-				else
-				{
-					sensors[k].err_cnt++;
-				}
-			}	
-			else if (p_dev_config->pins[source] == AS5048A_CS)				// source AS5048A
-			{
-				uint8_t k = 0;
-				uint16_t tmp16 = 0;
-				// search for needed sensor
-				for (k=0; k<MAX_AXIS_NUM; k++)
-				{
-					if (sensors[k].source == source) break;
-				}
-				if (AS5048A_GetData(&tmp16, &sensors[k], channel) == 0)
-				{
-					sensors[k].ok_cnt++;
-					
-					if (p_dev_config->axis_config[i].offset_angle > 0)	// offset enabled
-					{
-						raw_axis_data[i] = tmp16 - p_dev_config->axis_config[i].offset_angle * 2730;
-						if (raw_axis_data[i] < AXIS_MIN_VALUE) raw_axis_data[i] += AXIS_FULLSCALE;
-						else if (raw_axis_data[i] > AXIS_MAX_VALUE) raw_axis_data[i] -= AXIS_FULLSCALE;		// always false
-					}
-					else
-					{
-						raw_axis_data[i] = tmp16;
-					}
-				}
-				else
-				{
-					sensors[k].err_cnt++;
-				}
-			}	
+	
 		}
 		else if (source == (axis_source_t)SOURCE_I2C)				// source I2C sensor
 		{
@@ -992,48 +708,8 @@ void AxesProcess (dev_config_t * p_dev_config)
 				}
 				raw_axis_data[i] = map2(tmp[i], 0, 32767, AXIS_MIN_VALUE, AXIS_MAX_VALUE);
 			}
-			else if (sensors[k].type == AS5600)
-			{
-				if (p_dev_config->axis_config[i].offset_angle > 0)	// offset enabled
-				{
-					tmp[i] = AS5600_GetScaledData(&sensors[k]) - p_dev_config->axis_config[i].offset_angle * 170;
-					if (tmp[i] < 0) tmp[i] += 4095;
-					else if (tmp[i] > 4095) tmp[i] -= 4095;
-				}
-				else		// offset disabled
-				{
-					tmp[i] = AS5600_GetScaledData(&sensors[k]);
-				}					
-				raw_axis_data[i] = map2(tmp[i], 0, 4095, AXIS_MIN_VALUE, AXIS_MAX_VALUE);
-			}
 		}				
 		
-		else if (source == SOURCE_ENCODER)		// source encoder
-		{
-			uint8_t encoder_num = p_dev_config->axis_config[i].channel;
-			
-			if (encoders_state[encoder_num].cnt > p_dev_config->axis_config[i].calib_max) 
-			{
-				encoders_state[encoder_num].cnt = p_dev_config->axis_config[i].calib_max;
-			}
-			if (encoders_state[encoder_num].cnt < p_dev_config->axis_config[i].calib_min) 
-			{
-				encoders_state[encoder_num].cnt = p_dev_config->axis_config[i].calib_min;
-			}
-				
-			if (p_dev_config->axis_config[i].offset_angle > 0)	// offset enabled
-			{
-				tmp[i] = encoders_state[p_dev_config->axis_config[i].channel].cnt - p_dev_config->axis_config[i].offset_angle * 170;
-				if (tmp[i] < 0) tmp[i] += 32767;
-				else if (tmp[i] > 32767) tmp[i] -= 32767;
-			}
-			else		// offset disabled
-			{	
-				tmp[i] = encoders_state[p_dev_config->axis_config[i].channel].cnt;
-			}
-			
-			raw_axis_data[i] = tmp[i];
-		}
 		
 		
 		// Filtering
