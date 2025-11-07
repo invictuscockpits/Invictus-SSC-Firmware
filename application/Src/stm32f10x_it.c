@@ -3,8 +3,8 @@
   * @file    Project/STM32F10x_StdPeriph_Template/stm32f10x_it.c 
   * @project        Invictus HOTAS Firmware
  * @author         Invictus Cockpit Systems
- * @version        1.2.0
- * @date           2025-10-25
+ * @version        1.2.1
+ * @date           2025-10-27
  *
  * Based on FreeJoy firmware by Yury Vostrenkov (2020)
  * https://github.com/FreeJoy-Team/FreeJoy
@@ -54,15 +54,9 @@
 #include "usb_lib.h"
 #include "periphery.h"
 #include "analog.h"
-#include "encoders.h"
-#include "tle5011.h"
-#include "tle5012.h"
+#include "buttons.h"
 #include "mcp320x.h"
-#include "mlx90363.h"
-#include "mlx90393.h"
-#include "as5048a.h"
 #include "ads1115.h"
-#include "as5600.h"
 #include "config.h"
 
 /** @addtogroup STM32F10x_StdPeriph_Template
@@ -76,7 +70,6 @@
 #define ADC_PERIOD_TICKS										4					// 1 tick = 500us
 #define SENSORS_PERIOD_TICKS								4
 #define BUTTONS_PERIOD_TICKS								1
-#define ENCODERS_PERIOD_TICKS								1
 
 /* Private variables ---------------------------------------------------------*/
 
@@ -84,8 +77,7 @@ static joy_report_t 			joy_report;
 static params_report_t 	params_report;
 
 volatile int32_t millis = 0;
-volatile int32_t joy_millis = 0; 
-volatile int32_t encoder_ticks = 0;
+volatile int32_t joy_millis = 0;
 volatile int32_t adc_ticks = 0;
 volatile int32_t sensors_ticks = 1;
 volatile int32_t buttons_ticks = 0;
@@ -296,12 +288,6 @@ void TIM2_IRQHandler(void)
 		{
 			buttons_ticks = Ticks;
 			ButtonsReadPhysical(&dev_config, raw_buttons_data);
-			
-			if (Ticks - encoder_ticks >= ENCODERS_PERIOD_TICKS)
-			{
-				encoder_ticks = Ticks;
-				EncoderProcess(logical_buttons_state, &dev_config);
-			}
 		}
 		
 		// Internal ADC conversion
@@ -312,26 +298,15 @@ void TIM2_IRQHandler(void)
 			AxesProcess(&dev_config);					// process axis only once for one data reading
 			
 			// Disable periphery before ADC conversion
-			RCC_APB2PeriphClockCmd(RCC_APB2Periph_SPI1,DISABLE);	
-			RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C2|RCC_APB1Periph_TIM4, DISABLE);
-		  RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB|RCC_APB2Periph_GPIOC,DISABLE);
-			
-			if (tmp_app_config.fast_encoder_cnt == 0)
-			{
-				RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM1,DISABLE);
-			}
-			if (tmp_app_config.pwm_cnt == 0)
-			{
-				RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM3,DISABLE);
-			}
-				
+			RCC_APB2PeriphClockCmd(RCC_APB2Periph_SPI1,DISABLE);
+			// I2C2 NOT disabled to prevent ADS1115 DMA disruption
+		  // GPIO NOT disabled to prevent ADS1115 DMA disruption
+
 			// ADC measurement
 			ADC_Conversion();
-			
+
 			// Enable periphery after ADC conversion
       RCC_APB2PeriphClockCmd(RCC_APB2Periph_SPI1,ENABLE);
-      RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C2|RCC_APB1Periph_TIM3|RCC_APB1Periph_TIM4, ENABLE);
-      RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB|RCC_APB2Periph_GPIOC|RCC_APB2Periph_TIM1,ENABLE);
 
 		}
 		// External sensors data receiption
@@ -344,37 +319,9 @@ void TIM2_IRQHandler(void)
 			{
 				if (sensors[i].source >= 0 && sensors[i].tx_complete && sensors[i].rx_complete)
 				{
-					if (sensors[i].type == TLE5011)
-					{
-						TLE5011_StartDMA(&sensors[i]);
-						break;
-					}
-					else if (sensors[i].type == TLE5012)
-					{
-						TLE5012_StartDMA(&sensors[i]);
-						break;
-					}
-					else if (sensors[i].type == MCP3201 ||
-									 sensors[i].type == MCP3202 ||
-									 sensors[i].type == MCP3204 ||
-									 sensors[i].type == MCP3208)
+					if (sensors[i].type == MCP3202)
 					{
 						MCP320x_StartDMA(&sensors[i], 0);
-						break;
-					}
-					else if (sensors[i].type == MLX90363)
-					{
-						MLX90363_StartDMA(&sensors[i]);
-						break;
-					}
-					else if (sensors[i].type == MLX90393_SPI)
-					{
-						MLX90393_StartDMA(MLX_SPI, &sensors[i]);
-						break;
-					}
-					else if (sensors[i].type == AS5048A_SPI)
-					{
-						AS5048A_StartDMA(&sensors[i]);
 						break;
 					}
 				}
@@ -384,13 +331,7 @@ void TIM2_IRQHandler(void)
 			{
 				if (sensors[i].source == (pin_t)SOURCE_I2C && sensors[i].rx_complete && sensors[i].tx_complete)
 				{		
-					if (sensors[i].type == AS5600)
-					{
-						status = AS5600_StartDMA(&sensors[i]);
-						if (status != 0) continue;
-						else break;
-					}
-					else if (sensors[i].type == ADS1115)
+					if (sensors[i].type == ADS1115)
 					{
 						status = ADS1115_StartDMA(&sensors[i], sensors[i].curr_channel);	
 						if (status != 0) continue;
@@ -424,19 +365,7 @@ void DMA1_Channel2_IRQHandler(void)
 		// Close connection to the sensor
 		if (i < MAX_AXIS_NUM)
 		{
-			if (sensors[i].type == TLE5011)
-			{
-				TLE5011_StopDMA(&sensors[i++]);
-			}
-			else if (sensors[i].type == TLE5012)
-			{
-				TLE5012_StopDMA(&sensors[i++]);
-			}
-			else if (sensors[i].type == MCP3201)
-			{
-				MCP320x_StopDMA(&sensors[i++]);
-			}
-			else if (sensors[i].type == MCP3202)
+			if (sensors[i].type == MCP3202)
 			{
 				MCP320x_StopDMA(&sensors[i]);
 				// get data from next channel
@@ -446,40 +375,6 @@ void DMA1_Channel2_IRQHandler(void)
 					return;
 				}
 				i++;
-			}	
-			else if (sensors[i].type == MCP3204)
-			{
-				MCP320x_StopDMA(&sensors[i]);
-				// get data from next channel
-				if (sensors[i].curr_channel < 3)	
-				{
-					MCP320x_StartDMA(&sensors[i], sensors[i].curr_channel + 1);
-					return;
-				}
-				i++;
-			}	
-			else if (sensors[i].type == MCP3208)
-			{
-				MCP320x_StopDMA(&sensors[i]);
-				// get data from next channel
-				if (sensors[i].curr_channel < 7)	
-				{
-					MCP320x_StartDMA(&sensors[i], sensors[i].curr_channel + 1);
-					return;
-				}
-				i++;
-			}
-			else if (sensors[i].type == MLX90363)
-			{
-				MLX90363_StopDMA(&sensors[i++]);
-			}
-			else if (sensors[i].type == MLX90393_SPI)
-			{
-				MLX90393_StopDMA(&sensors[i++]);
-			}
-			else if (sensors[i].type == AS5048A_SPI)
-			{
-				AS5048A_StopDMA(&sensors[i++]);
 			}
 		}
 		
@@ -489,37 +384,9 @@ void DMA1_Channel2_IRQHandler(void)
 		{
 			if (sensors[i].source >= 0 && sensors[i].rx_complete && sensors[i].tx_complete)
 			{
-				if (sensors[i].type == TLE5011)
-				{
-					TLE5011_StartDMA(&sensors[i]);
-					return;
-				}
-				else if (sensors[i].type == TLE5012)
-				{
-					TLE5012_StartDMA(&sensors[i]);
-					return;
-				}
-				else if (sensors[i].type == MCP3201 ||
-								 sensors[i].type == MCP3202 ||
-								 sensors[i].type == MCP3204 ||
-								 sensors[i].type == MCP3208)
+				if (sensors[i].type == MCP3202)
 				{
 					MCP320x_StartDMA(&sensors[i], 0);
-					return;
-				}
-				else if (sensors[i].type == MLX90363)
-				{
-					MLX90363_StartDMA(&sensors[i]);
-					return;
-				}
-				else if (sensors[i].type == MLX90393_SPI)
-				{
-					MLX90393_StartDMA(MLX_SPI, &sensors[i]);
-					return;
-				}
-				else if (sensors[i].type == AS5048A_SPI)
-				{
-					AS5048A_StartDMA(&sensors[i]);
 					return;
 				}
 			}
@@ -548,21 +415,6 @@ void DMA1_Channel3_IRQHandler(void)
 			{
 				sensors[i].tx_complete = 1;
 				sensors[i].rx_complete = 0;
-				if (sensors[i].type == TLE5011)
-				{
-					SPI_HalfDuplex_Receive(&sensors[i].data[2], 6, TLE5011_SPI_MODE);					
-				}
-				if (sensors[i].type == TLE5012)
-				{
-					// switch MOSI back to open-drain
-					GPIO_InitTypeDef GPIO_InitStructure;
-					GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-					GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5;
-					GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;						
-					GPIO_Init (GPIOB,&GPIO_InitStructure);
-					
-					SPI_HalfDuplex_Receive(&sensors[i].data[2], 4, TLE5012_SPI_MODE);					
-				}
 				break;
 			}
 		}
@@ -620,13 +472,7 @@ void DMA1_Channel4_IRQHandler(void)
 		{
 				if (sensors[i].source == (pin_t)SOURCE_I2C && sensors[i].rx_complete && sensors[i].tx_complete)
 				{		
-					if (sensors[i].type == AS5600)
-					{
-						status = AS5600_StartDMA(&sensors[i]);
-						if (status != 0) continue;
-						else break;
-					}
-					else if (sensors[i].type == ADS1115)
+					if (sensors[i].type == ADS1115)
 					{
 						status = ADS1115_StartDMA(&sensors[i], sensors[i].curr_channel);
 						if (status != 0) continue;

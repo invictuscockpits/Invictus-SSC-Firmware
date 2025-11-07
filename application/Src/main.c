@@ -29,8 +29,6 @@
 #include "config.h"
 #include "analog.h"
 #include "buttons.h"
-#include "leds.h"
-#include "encoders.h"
 
 
 #include "usb_hw.h"
@@ -73,8 +71,7 @@ if ((dev_config.firmware_version & 0xFFF0) != (FIRMWARE_VERSION &0xFFF0))
 	Delay_ms(1000);	
 	
 	IO_Init(&dev_config);
-	 
-	EncodersInit(&dev_config);	
+
 	ShiftRegistersInit(&dev_config);
 	RadioButtons_Init(&dev_config);
 	SequentialButtons_Init(&dev_config);
@@ -91,9 +88,7 @@ if ((dev_config.firmware_version & 0xFFF0) != (FIRMWARE_VERSION &0xFFF0))
   {		
 		ButtonsDebounceProcess(&dev_config);
 		ButtonsReadLogical(&dev_config);
-		
-		LEDs_PhysicalProcess(&dev_config);
-		
+
 		analog_data_t tmp[8];
 		AnalogGet(NULL, tmp, NULL);
 		PWM_SetFromAxis(&dev_config, tmp);

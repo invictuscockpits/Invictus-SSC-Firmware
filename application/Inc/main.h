@@ -17,7 +17,7 @@
   * under the terms of the GNU General Public License v3.0 or later:
   * https://www.gnu.org/licenses/gpl-3.0.html
   *
-  * Modifications and additions are © 2025 Invictus Cockpit Systems.
+  * Modifications and additions are ï¿½ 2025 Invictus Cockpit Systems.
   *
   * This software has been carefully modified for a specific purpose.  It is not recommended for use outside of the Invictus HOTAS system.
   *
@@ -63,12 +63,7 @@ static const dev_config_t init_config =
 	.pid = 0x12D3,										
 
 	.button_debounce_ms = 50,					// debounce time for all buttons
-	
-	.encoder_press_time_ms = 10,			// amount of milliseconds virtual button 
-																		// will be pressed at encoder increment/decrement
-																		
 	.exchange_period_ms = 5,					// amount of millisecond between joystick data sending
-	
 	.button_timer1_ms = 50,						// amount of milliseconds of delay1 for a virtual button
 	.button_timer2_ms = 200,					// amount of milliseconds of delay2 for a virtual button
 	.button_timer3_ms = 300,					// amount of milliseconds of delay3 for a virtual button
@@ -716,86 +711,7 @@ static const dev_config_t init_config =
 	.shift_config[2].button = -1,
 	.shift_config[3].button = -1,
 	.shift_config[4].button = -1,
-	
-	.encoders[0] = ENCODER_CONF_2x,
-	.encoders[1] = ENCODER_CONF_2x,
-	.encoders[2] = ENCODER_CONF_2x,
-	.encoders[3] = ENCODER_CONF_2x,
-	.encoders[4] = ENCODER_CONF_2x,
-	.encoders[5] = ENCODER_CONF_2x,
-	.encoders[6] = ENCODER_CONF_2x,
-	.encoders[7] = ENCODER_CONF_2x,
-	.encoders[8] = ENCODER_CONF_2x,
-	.encoders[9] = ENCODER_CONF_2x,
-	.encoders[10] = ENCODER_CONF_2x,
-	.encoders[11] = ENCODER_CONF_2x,
-	.encoders[12] = ENCODER_CONF_2x,
-	.encoders[13] = ENCODER_CONF_2x,
-	.encoders[14] = ENCODER_CONF_2x,
-	.encoders[15] = ENCODER_CONF_2x,
-	
-	.led_pwm_config[0].duty_cycle = 50,
-	.led_pwm_config[0].is_axis = 0,
-	.led_pwm_config[0].axis_num = 0,
-	.led_pwm_config[1].duty_cycle = 50,
-	.led_pwm_config[1].is_axis = 0,
-	.led_pwm_config[1].axis_num = 0,
-	.led_pwm_config[2].duty_cycle = 50,
-	.led_pwm_config[2].is_axis = 0,
-	.led_pwm_config[2].axis_num = 0,
-	.led_pwm_config[3].duty_cycle = 50,
-	.led_pwm_config[3].is_axis = 0,
-	.led_pwm_config[3].axis_num = 0,	
-	
-	.leds[0].input_num = -1,
-	.leds[0].type = LED_NORMAL,
-	.leds[1].input_num = -1,
-	.leds[1].type = LED_NORMAL,
-	.leds[2].input_num = -1,
-	.leds[2].type = LED_NORMAL,
-	.leds[3].input_num = -1,
-	.leds[3].type = LED_NORMAL,
-	.leds[4].input_num = -1,
-	.leds[4].type = LED_NORMAL,
-	.leds[5].input_num = -1,
-	.leds[5].type = LED_NORMAL,
-	.leds[6].input_num = -1,
-	.leds[6].type = LED_NORMAL,
-	.leds[7].input_num = -1,
-	.leds[7].type = LED_NORMAL,
-	.leds[8].input_num = -1,
-	.leds[8].type = LED_NORMAL,
-	.leds[9].input_num = -1,
-	.leds[9].type = LED_NORMAL,
-	.leds[10].input_num = -1,
-	.leds[10].type = LED_NORMAL,
-	.leds[11].input_num = -1,
-	.leds[11].type = LED_NORMAL,
-	.leds[12].input_num = -1,
-	.leds[12].type = LED_NORMAL,
-	.leds[13].input_num = -1,
-	.leds[13].type = LED_NORMAL,
-	.leds[14].input_num = -1,
-	.leds[14].type = LED_NORMAL,
-	.leds[15].input_num = -1,
-	.leds[15].type = LED_NORMAL,
-	.leds[16].input_num = -1,
-	.leds[16].type = LED_NORMAL,
-	.leds[17].input_num = -1,
-	.leds[17].type = LED_NORMAL,
-	.leds[18].input_num = -1,
-	.leds[18].type = LED_NORMAL,
-	.leds[19].input_num = -1,
-	.leds[19].type = LED_NORMAL,
-	.leds[20].input_num = -1,
-	.leds[20].type = LED_NORMAL,
-	.leds[21].input_num = -1,
-	.leds[21].type = LED_NORMAL,
-	.leds[22].input_num = -1,
-	.leds[22].type = LED_NORMAL,
-	.leds[23].input_num = -1,
-	.leds[23].type = LED_NORMAL,	
-		
+
 };
 
 

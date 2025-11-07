@@ -68,7 +68,6 @@
 /* Private variables ---------------------------------------------------------*/
 volatile extern uint8_t bootloader;
 volatile extern int32_t joy_millis;
-volatile extern int32_t encoder_ticks;
 volatile extern int32_t adc_ticks;
 volatile extern int32_t sensors_ticks;
 volatile extern int32_t buttons_ticks;
@@ -147,7 +146,6 @@ if (repotId == REPORT_ID_PARAM)
 		adc_ticks = (GetMillis() + 2000) * TICKS_IN_MILLISECOND;
 		buttons_ticks = (GetMillis() + 2000) * TICKS_IN_MILLISECOND;
 		sensors_ticks = (GetMillis() + 2000) * TICKS_IN_MILLISECOND;
-		encoder_ticks = (GetMillis() + 2000) * TICKS_IN_MILLISECOND;
 	}
 	
 	uint8_t cfg_count = sizeof(dev_config_t) / 62;
