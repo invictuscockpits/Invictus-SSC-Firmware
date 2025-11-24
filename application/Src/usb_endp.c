@@ -3,19 +3,17 @@
  * @file    	 		 usb_endp.c
  * @project        Invictus HOTAS Firmware
  * @author         Invictus Cockpit Systems
- * @version        1.1.0
- * @date           2025-10-06
+ * @version        1.1.1
+ * @date           2025-11-24
  *
- * Based on FreeJoy firmware by Yury Vostrenkov (2020)
+ * This file incorporates code from FreeJoy by Yury Vostrenkov (2020)
  * https://github.com/FreeJoy-Team/FreeJoy
  *
- * This software includes original or modified portions of FreeJoy, distributed
- * under the terms of the GNU General Public License v3.0 or later:
+ * Licensed under the GNU General Public License v3.0 or later.
  * https://www.gnu.org/licenses/gpl-3.0.html
  *
- * Modifications and additions are � 2025 Invictus Cockpit Systems.
- *
- * This software has been carefully modified for a specific purpose.  It is not recommended for use outside of the Invictus HOTAS system.
+ * © 2025 Invictus Cockpit Systems. All modifications reserved.
+ * This firmware is designed exclusively for Invictus HOTAS hardware.
  *
  
   * @attention
@@ -83,6 +81,9 @@ __IO uint8_t EP2_PrevXferComplete = 1;
 /* queue a DEV reply if EP2 IN is busy, flush in EP2_IN_Callback */
 static volatile uint8_t dev_in_pending = 0;
 static uint8_t dev_in_buf[64];
+
+/* device_info multi-packet transfer buffer (81 bytes > 62 byte payload) */
+static device_info_t dev_info_transfer_buf;
 
 static inline void dev_send_or_queue(uint8_t op, const void *payload, uint8_t len)
 {
@@ -230,38 +231,61 @@ if (repotId == REPORT_ID_PARAM)
 
 			case OP_GET_DEVICE_INFO:
 			{
-					device_info_t info;
-					memset(&info, 0, sizeof(info));
-					info.magic = DEVICE_INFO_MAGIC;
-					info.version = 1;
-					info.locked = g_device_info.locked;
-					info.crc32 = 0;
-					memcpy(info.model_number, g_device_info.model_number, sizeof(info.model_number));
-					memcpy(info.serial_number, g_device_info.serial_number, sizeof(info.serial_number));
-					memcpy(info.manufacture_date, g_device_info.manufacture_date, sizeof(info.manufacture_date));
-					
-					dev_send_or_queue(OP_GET_DEVICE_INFO, &info, sizeof(info));
+					/* Part 1: Send first 62 bytes of device_info_t (85 bytes total) */
+					memset(&dev_info_transfer_buf, 0, sizeof(dev_info_transfer_buf));
+					dev_info_transfer_buf.magic = DEVICE_INFO_MAGIC;
+					dev_info_transfer_buf.version = 1;
+					dev_info_transfer_buf.locked = g_device_info.locked;
+					dev_info_transfer_buf.crc32 = 0;
+					memcpy(dev_info_transfer_buf.model_number, g_device_info.model_number, sizeof(dev_info_transfer_buf.model_number));
+					memcpy(dev_info_transfer_buf.serial_number, g_device_info.serial_number, sizeof(dev_info_transfer_buf.serial_number));
+					memcpy(dev_info_transfer_buf.manufacture_date, g_device_info.manufacture_date, sizeof(dev_info_transfer_buf.manufacture_date));
+					memcpy(dev_info_transfer_buf.device_name, g_device_info.device_name, sizeof(dev_info_transfer_buf.device_name));
+					memcpy(dev_info_transfer_buf.adc_pga, g_device_info.adc_pga, sizeof(dev_info_transfer_buf.adc_pga));
+					memcpy(dev_info_transfer_buf.adc_mode, g_device_info.adc_mode, sizeof(dev_info_transfer_buf.adc_mode));
+
+					/* Send first 62 bytes */
+					dev_send_or_queue(OP_GET_DEVICE_INFO, (uint8_t*)&dev_info_transfer_buf, 62);
+					break;
+			}
+
+			case OP_GET_DEVICE_INFO_PART2:
+			{
+					/* Part 2: Send remaining 23 bytes (bytes 62-84) */
+					dev_send_or_queue(OP_GET_DEVICE_INFO_PART2, (uint8_t*)&dev_info_transfer_buf + 62, 23);
 					break;
 			}
 
 			case OP_SET_DEVICE_INFO:
 			{
-					device_info_t di;
-					memcpy(&di, &hid_buf[2], sizeof(di));   /* 52 bytes from host */
-					
-					/* ACK immediately so host doesn't time out */
-					uint8_t status = 1;                     /* queued OK */
+					/* Part 1: Receive first 62 bytes into transfer buffer */
+					memset(&dev_info_transfer_buf, 0, sizeof(dev_info_transfer_buf));
+					memcpy((uint8_t*)&dev_info_transfer_buf, &hid_buf[2], 62);
+
+					/* ACK and request part 2 */
+					uint8_t status = 1;
 					dev_send_or_queue(OP_SET_DEVICE_INFO, &status, 1);
-					
-					/* do the slow work after replying */
-					memcpy(g_device_info.model_number, di.model_number, sizeof(g_device_info.model_number));
-					memcpy(g_device_info.serial_number, di.serial_number, sizeof(g_device_info.serial_number));
-					memcpy(g_device_info.manufacture_date, di.manufacture_date, sizeof(g_device_info.manufacture_date));
-				
-					(void)device_info_write_flash();
 					break;
 			}
-						
+
+			case OP_SET_DEVICE_INFO_PART2:
+			{
+					/* Part 2: Receive remaining 23 bytes */
+					memcpy((uint8_t*)&dev_info_transfer_buf + 62, &hid_buf[2], 23);
+
+					/* Now we have the complete device_info_t, copy to global */
+					memcpy(g_device_info.model_number, dev_info_transfer_buf.model_number, sizeof(g_device_info.model_number));
+					memcpy(g_device_info.serial_number, dev_info_transfer_buf.serial_number, sizeof(g_device_info.serial_number));
+					memcpy(g_device_info.manufacture_date, dev_info_transfer_buf.manufacture_date, sizeof(g_device_info.manufacture_date));
+					memcpy(g_device_info.device_name, dev_info_transfer_buf.device_name, sizeof(g_device_info.device_name));
+					memcpy(g_device_info.adc_pga, dev_info_transfer_buf.adc_pga, sizeof(g_device_info.adc_pga));
+					memcpy(g_device_info.adc_mode, dev_info_transfer_buf.adc_mode, sizeof(g_device_info.adc_mode));
+
+					/* Write to flash */
+					uint8_t write_status = device_info_write_flash() ? 1 : 0;
+					dev_send_or_queue(OP_SET_DEVICE_INFO_PART2, &write_status, 1);
+					break;
+			}
 
 			default:
 				dev_send_or_queue(op, NULL, 0);

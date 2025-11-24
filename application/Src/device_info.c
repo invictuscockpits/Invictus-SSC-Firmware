@@ -9,17 +9,14 @@
   * @version        : 1.1.0
   * @date           : 2025-10-06
   *
-  * Based on FreeJoy firmware by Yury Vostrenkov (2020)
+  * This file incorporates code from FreeJoy by Yury Vostrenkov (2020)
   * https://github.com/FreeJoy-Team/FreeJoy
   *
-  * This software includes original or modified portions of FreeJoy, distributed
-  * under the terms of the GNU General Public License v3.0 or later:
+  * Licensed under the GNU General Public License v3.0 or later.
   * https://www.gnu.org/licenses/gpl-3.0.html
   *
-  * Modifications and additions are � 2025 Invictus Cockpit Systems.
-  *
-  * This software has been carefully modified for a specific purpose. It is not 
-  * recommended for use outside of the Invictus HOTAS system.
+  * © 2025 Invictus Cockpit Systems. All modifications reserved.
+  * This firmware is designed exclusively for Invictus HOTAS hardware.
   *
   ******************************************************************************
   */
@@ -42,7 +39,10 @@ device_info_t g_device_info = {
     .crc32 = 0,
     .model_number = "",
     .serial_number = "",
-    .manufacture_date = ""
+    .manufacture_date = "",
+    .device_name = "",
+    .adc_pga = {8, 4, 4, 4},  // Default: Ch0=PGA8, Ch1=PGA4, Ch2=PGA4, Ch3=PGA4
+    .adc_mode = {0, 0, 0, 0}  // Default: all single-ended mode
 };
 
 // CRC32 calculation (same as force anchors)
@@ -169,6 +169,15 @@ void device_info_init(void)
         g_device_info.locked = 0;
         strcpy(g_device_info.model_number, "UNDEFINED");
         strcpy(g_device_info.serial_number, "000000");
+        strcpy(g_device_info.device_name, "Invictus SSC");
+        g_device_info.adc_pga[0] = 8;  // Channel 0: PGA 8 (±0.512V)
+        g_device_info.adc_pga[1] = 4;  // Channel 1: PGA 4 (±1.024V)
+        g_device_info.adc_pga[2] = 4;  // Channel 2: PGA 4 (±1.024V)
+        g_device_info.adc_pga[3] = 4;  // Channel 3: PGA 4 (±1.024V)
+        g_device_info.adc_mode[0] = 0; // Channel 0: Single-ended
+        g_device_info.adc_mode[1] = 0; // Channel 1: Single-ended
+        g_device_info.adc_mode[2] = 0; // Channel 2: Single-ended
+        g_device_info.adc_mode[3] = 0; // Channel 3: Single-ended
     }
 }
 
@@ -193,6 +202,11 @@ bool device_info_handle_op(uint8_t op,
             blk.version = 1;
             strcpy(blk.model_number, "UNDEFINED");
             strcpy(blk.serial_number, "000000");
+            strcpy(blk.device_name, "Invictus SSC");
+            blk.adc_pga[0] = 8;  // Default PGA values
+            blk.adc_pga[1] = 4;
+            blk.adc_pga[2] = 4;
+            blk.adc_pga[3] = 4;
         } else {
             // Copy from global to struct
             memset(&blk, 0, sizeof(blk));
@@ -202,6 +216,8 @@ bool device_info_handle_op(uint8_t op,
             memcpy(blk.model_number, g_device_info.model_number, sizeof(blk.model_number));
             memcpy(blk.serial_number, g_device_info.serial_number, sizeof(blk.serial_number));
             memcpy(blk.manufacture_date, g_device_info.manufacture_date, sizeof(blk.manufacture_date));
+            memcpy(blk.device_name, g_device_info.device_name, sizeof(blk.device_name));
+            memcpy(blk.adc_pga, g_device_info.adc_pga, sizeof(blk.adc_pga));
         }
         memcpy(out_buf, &blk, sizeof(blk));
         *out_len = (uint8_t)sizeof(blk);
@@ -216,7 +232,9 @@ bool device_info_handle_op(uint8_t op,
         memcpy(g_device_info.model_number, in->model_number, sizeof(g_device_info.model_number));
         memcpy(g_device_info.serial_number, in->serial_number, sizeof(g_device_info.serial_number));
         memcpy(g_device_info.manufacture_date, in->manufacture_date, sizeof(g_device_info.manufacture_date));
-        
+        memcpy(g_device_info.device_name, in->device_name, sizeof(g_device_info.device_name));
+        memcpy(g_device_info.adc_pga, in->adc_pga, sizeof(g_device_info.adc_pga));
+
         bool ok = device_info_write_flash();
         out_buf[0] = ok ? 1 : 0;   // 1=OK, 0=FAIL (e.g., locked)
         *out_len = 1;

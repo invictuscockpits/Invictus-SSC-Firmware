@@ -6,16 +6,14 @@
  * @version        1.0.0
  * @date           2025-07-30
  *
- * Based on FreeJoy firmware by Yury Vostrenkov (2020)
+ * This file incorporates code from FreeJoy by Yury Vostrenkov (2020)
  * https://github.com/FreeJoy-Team/FreeJoy
  *
- * This software includes original or modified portions of FreeJoy, distributed
- * under the terms of the GNU General Public License v3.0 or later:
+ * Licensed under the GNU General Public License v3.0 or later.
  * https://www.gnu.org/licenses/gpl-3.0.html
  *
- * Modifications and additions are © 2025 Invictus Cockpit Systems.
- *
- * This software has been carefully modified for a specific purpose.  It is not recommended for use outside of the Invictus HOTAS system.
+ * Â© 2025 Invictus Cockpit Systems. All modifications reserved.
+ * This firmware is designed exclusively for Invictus HOTAS hardware.
  *
  
   * @attention
@@ -354,6 +352,36 @@ uint8_t Composite_StringSerial[Composite_SIZ_STRING_SERIAL] =
     USB_STRING_DESCRIPTOR_TYPE,        /* bDescriptorType */
     'S', 0, 'T', 0, 'M', 0,'3', 0,'2', 0
   };
+
+/**
+ * @brief Update the USB product string from device_name
+ * @param device_name Null-terminated device name string (max 25 chars)
+ */
+void USB_UpdateProductString(const char* device_name)
+{
+    uint8_t len = 0;
+    uint8_t i;
+
+    // Count string length (max 25 chars for 26-byte device_name including null)
+    while (device_name[len] != '\0' && len < 25) {
+        len++;
+    }
+
+    // If empty or invalid, use default
+    if (len == 0) {
+        return;
+    }
+
+    // Update descriptor length: 2 bytes (length + type) + (len * 2) for UTF-16LE
+    Composite_StringProduct[0] = 2 + (len * 2);
+    Composite_StringProduct[1] = USB_STRING_DESCRIPTOR_TYPE;
+
+    // Convert ASCII to UTF-16LE (each char followed by 0x00)
+    for (i = 0; i < len; i++) {
+        Composite_StringProduct[2 + (i * 2)] = device_name[i];
+        Composite_StringProduct[2 + (i * 2) + 1] = 0;
+    }
+}
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
 

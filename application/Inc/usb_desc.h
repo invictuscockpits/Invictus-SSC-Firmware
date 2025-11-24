@@ -80,6 +80,8 @@ extern uint8_t Composite_StringVendor[Composite_SIZ_STRING_VENDOR];
 extern uint8_t Composite_StringProduct[Composite_SIZ_STRING_PRODUCT];
 extern uint8_t Composite_StringSerial[Composite_SIZ_STRING_SERIAL];
 
+void USB_UpdateProductString(const char* device_name);
+
 #endif /* __USB_DESC_H */
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

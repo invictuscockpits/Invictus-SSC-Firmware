@@ -63,3 +63,6 @@ DebugConfig
 MDK-ARM/FreeJoy.bin
 *.uvoptx
 *.uvprojx
+
+# Claude development notes (internal use only, do not commit)
+CLAUDE_DEVELOPMENT_NOTES.md

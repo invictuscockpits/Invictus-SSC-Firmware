@@ -7,16 +7,14 @@
   * @version        1.1.0
   * @date           2025-10-06
   *
-  * Based on FreeJoy firmware by Yury Vostrenkov (2020)
+  * This file incorporates code from FreeJoy by Yury Vostrenkov (2020)
   * https://github.com/FreeJoy-Team/FreeJoy
   *
-  * This software includes original or modified portions of FreeJoy, distributed
-  * under the terms of the GNU General Public License v3.0 or later:
+  * Licensed under the GNU General Public License v3.0 or later.
   * https://www.gnu.org/licenses/gpl-3.0.html
   *
-  * Modifications and additions are � 2025 Invictus Cockpit Systems.
-  *
-  * This software has been carefully modified for a specific purpose.  It is not recommended for use outside of the Invictus HOTAS system.
+  * © 2025 Invictus Cockpit Systems. All modifications reserved.
+  * This firmware is designed exclusively for Invictus HOTAS hardware.
   *
   ******************************************************************************
   */
@@ -343,6 +341,7 @@ typedef struct {
 } force_factory_anchors_t;
 #pragma pack(pop)
 /* Device identification info - stored separately from force anchors */
+#pragma pack(push, 1)
 typedef struct {
     uint16_t magic;
     uint8_t  version;
@@ -351,7 +350,11 @@ typedef struct {
     char     model_number[INV_MODEL_MAX_LEN];      // 16 bytes
     char     serial_number[INV_SERIAL_MAX_LEN];    // 16 bytes
     char     manufacture_date[DOM_ASCII_LEN + 1];  // 11 bytes
+    char     device_name[26];                       // 26 bytes (USB device name)
+    uint8_t  adc_pga[4];                            // 4 bytes - PGA gain for ADS1115 channels 0-3
+    uint8_t  adc_mode[4];                           // 4 bytes - 0=single-ended, 1=differential (pairs: 0-1, 2-3)
 } device_info_t;
+#pragma pack(pop)
 
 /******************** RUNTIME FORCE PROFILE (safe to reset) *******************
  * Lives in dev_config_t. If the user overwrites config without reading first,
