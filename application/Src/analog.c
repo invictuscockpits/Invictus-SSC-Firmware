@@ -32,6 +32,7 @@
 #include "mcp320x.h"
 #include "ads1115.h"
 #include "buttons.h"
+#include "device_info.h"
 
 #define CENTER_LED_RANGE 125 //ADC Count deviation allowace for Centered Axis LEDs to be lit
 
@@ -704,7 +705,15 @@ void AxesProcess (dev_config_t * p_dev_config)
 				{
 					tmp[i] = ADS1115_GetData(&sensors[k], channel);
 				}
+				// Differential mode uses full signed range, single-ended uses positive range only
+			if (g_device_info.adc_mode[channel] == 1)  // Differential mode
+			{
+				raw_axis_data[i] = map2(tmp[i], -32768, 32767, AXIS_MIN_VALUE, AXIS_MAX_VALUE);
+			}
+			else  // Single-ended mode
+			{
 				raw_axis_data[i] = map2(tmp[i], 0, 32767, AXIS_MIN_VALUE, AXIS_MAX_VALUE);
+			}
 			}
 		}				
 		
