@@ -8,16 +8,14 @@
   * @version        1.1.0
   * @date           2025-10-25
   *
-  * Based on FreeJoy firmware by Yury Vostrenkov (2020)
+  * This file incorporates code from FreeJoy by Yury Vostrenkov (2020)
   * https://github.com/FreeJoy-Team/FreeJoy
   *
-  * This software includes original or modified portions of FreeJoy, distributed
-  * under the terms of the GNU General Public License v3.0 or later:
+  * Licensed under the GNU General Public License v3.0 or later.
   * https://www.gnu.org/licenses/gpl-3.0.html
   *
-  * Modifications and additions are � 2025 Invictus Cockpit Systems.
-  *
-  * This software has been carefully modified for a specific purpose.  It is not recommended for use outside of the Invictus HOTAS system.
+  * © 2025 Invictus Cockpit Systems. All modifications reserved.
+  * This firmware is designed exclusively for Invictus HOTAS hardware.
   *
   ******************************************************************************
   */
@@ -34,6 +32,7 @@
 #include "mcp320x.h"
 #include "ads1115.h"
 #include "buttons.h"
+#include "device_info.h"
 
 #define CENTER_LED_RANGE 125 //ADC Count deviation allowace for Centered Axis LEDs to be lit
 
@@ -706,7 +705,15 @@ void AxesProcess (dev_config_t * p_dev_config)
 				{
 					tmp[i] = ADS1115_GetData(&sensors[k], channel);
 				}
+				// Differential mode uses full signed range, single-ended uses positive range only
+			if (g_device_info.adc_mode[channel] == 1)  // Differential mode
+			{
+				raw_axis_data[i] = map2(tmp[i], -32768, 32767, AXIS_MIN_VALUE, AXIS_MAX_VALUE);
+			}
+			else  // Single-ended mode
+			{
 				raw_axis_data[i] = map2(tmp[i], 0, 32767, AXIS_MIN_VALUE, AXIS_MAX_VALUE);
+			}
 			}
 		}				
 		

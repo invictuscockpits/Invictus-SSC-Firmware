@@ -4,19 +4,17 @@
   * @brief          : This file contains the common defines for the app.                  
   * @project        Invictus HOTAS Firmware
   * @author         Invictus Cockpit Systems
-  * @version        1.2.4
-  * @date           2025-10-24
+  * @version        1.2.5
+  * @date           2025-11-24
   *
-  * Based on FreeJoy firmware by Yury Vostrenkov (2020)
+  * This file incorporates code from FreeJoy by Yury Vostrenkov (2020)
   * https://github.com/FreeJoy-Team/FreeJoy
   *
-  * This software includes original or modified portions of FreeJoy, distributed
-  * under the terms of the GNU General Public License v3.0 or later:
+  * Licensed under the GNU General Public License v3.0 or later.
   * https://www.gnu.org/licenses/gpl-3.0.html
   *
-  * Modifications and additions are � 2025 Invictus Cockpit Systems.
-  *
-  * This software has been carefully modified for a specific purpose.  It is not recommended for use outside of the Invictus HOTAS system.
+  * © 2025 Invictus Cockpit Systems. All modifications reserved.
+  * This firmware is designed exclusively for Invictus HOTAS hardware.
   *
   ******************************************************************************
   */
@@ -34,7 +32,7 @@
 
 //#define DEBUG
 
-#define FIRMWARE_VERSION					0x2203    // v2.2.0.0 (Removed LED, Encoder, unused ADC support) 
+#define FIRMWARE_VERSION					0x2300    // v2.3.0.0 (Removed ADC debug opcode) 
 #define USED_PINS_NUM							30				// Contstant for HOTAS Control boards
 #define MAX_AXIS_NUM							8					// max 8
 #define MAX_BUTTONS_NUM						128				// power of 2, max 128
@@ -77,9 +75,11 @@ enum {
     OP_SET_FACTORY_ANCHORS  = 2,
     OP_LOCK_FACTORY_ANCHORS = 3,
     OP_UNLOCK_FACTORY_ANCHORS = 4,
-    // New device info operations
+    // Device info operations (multi-packet: 81 bytes > 62 byte payload limit)
     OP_GET_DEVICE_INFO = 5,
     OP_SET_DEVICE_INFO = 6,
+    OP_GET_DEVICE_INFO_PART2 = 7,
+    OP_SET_DEVICE_INFO_PART2 = 8,
 };
 
 

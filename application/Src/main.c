@@ -9,16 +9,14 @@
   * @version        1.1.0
   * @date           2025-10-25
   *
-  * Based on FreeJoy firmware by Yury Vostrenkov (2020)
+  * This file incorporates code from FreeJoy by Yury Vostrenkov (2020)
   * https://github.com/FreeJoy-Team/FreeJoy
   *
-  * This software includes original or modified portions of FreeJoy, distributed
-  * under the terms of the GNU General Public License v3.0 or later:
+  * Licensed under the GNU General Public License v3.0 or later.
   * https://www.gnu.org/licenses/gpl-3.0.html
   *
-  * Modifications and additions are � 2025 Invictus Cockpit Systems.
-  *
-  * This software has been carefully modified for a specific purpose.  It is not recommended for use outside of the Invictus HOTAS system.
+  * © 2025 Invictus Cockpit Systems. All modifications reserved.
+  * This firmware is designed exclusively for Invictus HOTAS hardware.
   *
   ******************************************************************************
   */
@@ -34,6 +32,8 @@
 #include "usb_hw.h"
 #include "usb_lib.h"
 #include "usb_pwr.h"
+#include "usb_desc.h"
+#include "device_info.h"
 
 
 /* Private variables ---------------------------------------------------------*/
@@ -41,7 +41,6 @@ dev_config_t dev_config;
 volatile uint8_t bootloader = 0;
 
 /* Private function prototypes -----------------------------------------------*/
-void device_info_init(void);
 /**
   * @brief  The application entry point.
   *
@@ -83,7 +82,10 @@ if ((dev_config.firmware_version & 0xFFF0) != (FIRMWARE_VERSION &0xFFF0))
 	
 	// Initialize device info from flash
 	device_info_init();
-	
+
+	// Update USB product string from device_name
+	USB_UpdateProductString(g_device_info.device_name);
+
   while (1)
   {		
 		ButtonsDebounceProcess(&dev_config);
