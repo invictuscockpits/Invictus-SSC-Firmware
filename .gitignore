@@ -66,3 +66,5 @@ MDK-ARM/FreeJoy.bin
 
 # Claude development notes (internal use only, do not commit)
 CLAUDE_DEVELOPMENT_NOTES.md
+BUG_INVESTIGATION*.md
+RELEASE_NOTES*.md
