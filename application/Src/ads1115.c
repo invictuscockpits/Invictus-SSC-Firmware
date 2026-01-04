@@ -121,7 +121,14 @@ void ADS1115_Init(sensor_t * sensor, dev_config_t * p_dev_config)
   */
 int16_t ADS1115_GetData(sensor_t * sensor, uint8_t channel)
 {
-	return sensor->data[3+2*channel]<<8|sensor->data[4 + 2*channel];
+	int16_t result;
+	uint8_t msb = sensor->data[3+2*channel];
+	uint8_t lsb = sensor->data[4+2*channel];
+
+	// Assemble bytes as big-endian signed 16-bit value
+	result = (int16_t)((msb << 8) | lsb);
+
+	return result;
 }
 
 /**

@@ -1,13 +1,13 @@
 /**
   ******************************************************************************
   * @file           : force_anchors.c
-  * @brief          : Implementing persistent force anchors that can be programmed in 
+  * @brief          : Implementing persistent force anchors that can be programmed in
 	*										developer mode to prevent users from overwriting device-specific
-	*										force values that otherwise cannot be recovered.			
+	*										force values that otherwise cannot be recovered.
 	* @project        Invictus HOTAS Firmware
   * @author         Invictus Cockpit Systems
-  * @version        1.2.0
-  * @date           2025-10-06
+  * @version        1.2.1
+  * @date           2026-01-02
   *
   * This file incorporates code from FreeJoy by Yury Vostrenkov (2020)
   * https://github.com/FreeJoy-Team/FreeJoy
@@ -51,22 +51,38 @@ uint32_t force_crc32(const void *data, uint32_t len) { return crc32_le(data, len
 /* ---------------- Flash write helper (mirror config.c pattern) ---------------- */
 static bool flash_write_factory(const force_factory_anchors_t *src)
 {
-    /* 1) Proper unlock + flag clear */
+    /* CRITICAL: The FACTORY page contains TWO structures:
+     *   - force_factory_anchors_t at offset 0 (46 bytes)
+     *   - device_info_t at offset 128 (85 bytes) - contains PGA settings
+     *
+     * We must preserve BOTH when erasing the page!
+     */
+
+    /* 1) Read entire page into buffer */
+    uint8_t page_buffer[FLASH_PAGE_SIZE];
+    const uint8_t *page_start = (const uint8_t*)FACTORY_ADDR;
+    for (uint16_t i = 0; i < FLASH_PAGE_SIZE; i++) {
+        page_buffer[i] = page_start[i];
+    }
+
+    /* 2) Update ONLY the force anchors section (first 46 bytes) */
+    memcpy(&page_buffer[0], src, sizeof(*src));
+
+    /* 3) Erase and rewrite entire page */
     FLASH_Unlock();
     FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_PGERR | FLASH_FLAG_WRPRTERR);
 
-    /* 2) Erase and check status */
     if (FLASH_ErasePage(FACTORY_ADDR) != FLASH_COMPLETE) {
         FLASH_Lock();
         return false;
     }
 
-    /* 3) Program as halfwords (more tolerant on F1) */
-    const uint16_t *hw = (const uint16_t*)src;
-    const uint32_t halfwords = (sizeof(*src) + 1u) / 2u;
+    /* 4) Write back entire page as halfwords (preserves device_info at offset 128) */
+    const uint16_t *hw_buf = (const uint16_t*)page_buffer;
+    const uint32_t total_halfwords = FLASH_PAGE_SIZE / 2u;
 
-    for (uint32_t i = 0; i < halfwords; ++i) {
-        if (FLASH_ProgramHalfWord(FACTORY_ADDR + (i * 2u), hw[i]) != FLASH_COMPLETE) {
+    for (uint32_t i = 0; i < total_halfwords; ++i) {
+        if (FLASH_ProgramHalfWord(FACTORY_ADDR + (i * 2u), hw_buf[i]) != FLASH_COMPLETE) {
             FLASH_Lock();
             return false;
         }

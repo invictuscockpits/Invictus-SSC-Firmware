@@ -1,13 +1,13 @@
 /**
   ******************************************************************************
   * @file           : device_info.c
-  * @brief          : Implementing persistent device identification storage that 
+  * @brief          : Implementing persistent device identification storage that
   *                   can be programmed in developer mode to store serial number,
   *                   model, and manufacturing date information.
   * @project        : Invictus HOTAS Firmware
   * @author         : Invictus Cockpit Systems
-  * @version        : 1.1.0
-  * @date           : 2025-10-06
+  * @version        : 1.1.1
+  * @date           : 2026-01-02
   *
   * This file incorporates code from FreeJoy by Yury Vostrenkov (2020)
   * https://github.com/FreeJoy-Team/FreeJoy
@@ -41,8 +41,8 @@ device_info_t g_device_info = {
     .serial_number = "",
     .manufacture_date = "",
     .device_name = "",
-    .adc_pga = {8, 4, 4, 4},  // Default: Ch0=PGA8, Ch1=PGA4, Ch2=PGA4, Ch3=PGA4
-    .adc_mode = {0, 0, 0, 0}  // Default: all single-ended mode
+    .adc_pga = {8, 8, 8, 8},  // Default: All channels PGA8 (±0.512V for differential mode)
+    .adc_mode = {1, 1, 1, 1}  // Default: all differential mode
 };
 
 // CRC32 calculation (same as force anchors)
@@ -170,14 +170,14 @@ void device_info_init(void)
         strcpy(g_device_info.model_number, "UNDEFINED");
         strcpy(g_device_info.serial_number, "000000");
         strcpy(g_device_info.device_name, "Invictus SSC");
-        g_device_info.adc_pga[0] = 8;  // Channel 0: PGA 8 (±0.512V)
-        g_device_info.adc_pga[1] = 4;  // Channel 1: PGA 4 (±1.024V)
-        g_device_info.adc_pga[2] = 4;  // Channel 2: PGA 4 (±1.024V)
-        g_device_info.adc_pga[3] = 4;  // Channel 3: PGA 4 (±1.024V)
-        g_device_info.adc_mode[0] = 0; // Channel 0: Single-ended
-        g_device_info.adc_mode[1] = 0; // Channel 1: Single-ended
-        g_device_info.adc_mode[2] = 0; // Channel 2: Single-ended
-        g_device_info.adc_mode[3] = 0; // Channel 3: Single-ended
+        g_device_info.adc_pga[0] = 8;  // Channel 0: PGA 8 (±0.512V for differential)
+        g_device_info.adc_pga[1] = 8;  // Channel 1: PGA 8 (±0.512V for differential)
+        g_device_info.adc_pga[2] = 8;  // Channel 2: PGA 8 (±0.512V for differential)
+        g_device_info.adc_pga[3] = 8;  // Channel 3: PGA 8 (±0.512V for differential)
+        g_device_info.adc_mode[0] = 1; // Channel 0: Differential
+        g_device_info.adc_mode[1] = 1; // Channel 1: Differential
+        g_device_info.adc_mode[2] = 1; // Channel 2: Differential
+        g_device_info.adc_mode[3] = 1; // Channel 3: Differential
     }
 }
 
@@ -203,10 +203,14 @@ bool device_info_handle_op(uint8_t op,
             strcpy(blk.model_number, "UNDEFINED");
             strcpy(blk.serial_number, "000000");
             strcpy(blk.device_name, "Invictus SSC");
-            blk.adc_pga[0] = 8;  // Default PGA values
-            blk.adc_pga[1] = 4;
-            blk.adc_pga[2] = 4;
-            blk.adc_pga[3] = 4;
+            blk.adc_pga[0] = 8;  // Default PGA values - all PGA8 for differential
+            blk.adc_pga[1] = 8;
+            blk.adc_pga[2] = 8;
+            blk.adc_pga[3] = 8;
+            blk.adc_mode[0] = 1; // Default to differential mode
+            blk.adc_mode[1] = 1;
+            blk.adc_mode[2] = 1;
+            blk.adc_mode[3] = 1;
         } else {
             // Copy from global to struct
             memset(&blk, 0, sizeof(blk));
