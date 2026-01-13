@@ -222,6 +222,7 @@ bool device_info_handle_op(uint8_t op,
             memcpy(blk.manufacture_date, g_device_info.manufacture_date, sizeof(blk.manufacture_date));
             memcpy(blk.device_name, g_device_info.device_name, sizeof(blk.device_name));
             memcpy(blk.adc_pga, g_device_info.adc_pga, sizeof(blk.adc_pga));
+            memcpy(blk.adc_mode, g_device_info.adc_mode, sizeof(blk.adc_mode));
         }
         memcpy(out_buf, &blk, sizeof(blk));
         *out_len = (uint8_t)sizeof(blk);
@@ -238,6 +239,7 @@ bool device_info_handle_op(uint8_t op,
         memcpy(g_device_info.manufacture_date, in->manufacture_date, sizeof(g_device_info.manufacture_date));
         memcpy(g_device_info.device_name, in->device_name, sizeof(g_device_info.device_name));
         memcpy(g_device_info.adc_pga, in->adc_pga, sizeof(g_device_info.adc_pga));
+        memcpy(g_device_info.adc_mode, in->adc_mode, sizeof(g_device_info.adc_mode));
 
         bool ok = device_info_write_flash();
         out_buf[0] = ok ? 1 : 0;   // 1=OK, 0=FAIL (e.g., locked)
