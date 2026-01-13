@@ -621,34 +621,113 @@ void ADC_Conversion (void)
 }
 
 /**
+  * @brief  Integer square root using Newton's method
+  * @param  n: Input value
+  * @retval Square root of n
+  */
+static uint32_t isqrt(uint32_t n)
+{
+	if (n == 0) return 0;
+
+	uint32_t x = n;
+	uint32_t y = (x + 1) >> 1;
+
+	while (y < x) {
+		x = y;
+		y = (x + n/x) >> 1;
+	}
+
+	return x;
+}
+
+/**
+  * @brief  Apply circular deadband to a pair of axes
+  * @param  x_value: Filtered X axis value (e.g., Roll)
+  * @param  y_value: Filtered Y axis value (e.g., Pitch)
+  * @param  x_center: X axis center calibration
+  * @param  y_center: Y axis center calibration
+  * @param  deadband_radius: Circular deadband radius (0-127)
+  * @param  x_out: Pointer to output X value (relative to center)
+  * @param  y_out: Pointer to output Y value (relative to center)
+  * @retval 1 if in deadband (return center), 0 if outside deadband
+  */
+static uint8_t ApplyCircularDeadband(
+	int32_t x_value,
+	int32_t y_value,
+	int32_t x_center,
+	int32_t y_center,
+	uint8_t deadband_radius,
+	int32_t *x_out,
+	int32_t *y_out)
+{
+	// Calculate offset from center
+	int32_t dx = x_value - x_center;
+	int32_t dy = y_value - y_center;
+
+	// Calculate squared distance (avoid sqrt for performance check)
+	int32_t dist_squared = dx*dx + dy*dy;
+
+	// Calculate deadband radius squared (scale by calibration range)
+	// Assume typical range of 2000 counts per axis
+	int32_t radius_scaled = (deadband_radius * 2000) >> 8;  // Same scaling as map3
+	int32_t radius_squared = radius_scaled * radius_scaled;
+
+	// If inside circular deadband, return center
+	if (dist_squared <= radius_squared) {
+		*x_out = 0;  // AXIS_CENTER_VALUE will be added later
+		*y_out = 0;
+		return 1;
+	}
+
+	// Outside deadband: scale linearly from deadband edge to full range
+	// Calculate radial distance
+	uint32_t dist = isqrt((uint32_t)dist_squared);
+	uint32_t radius = (uint32_t)radius_scaled;
+
+	if (dist > 0) {
+		// Scale factor = (dist - radius) / dist
+		// New position = offset * scale_factor
+		int32_t scale_num = (int32_t)(dist - radius);
+		*x_out = (dx * scale_num) / (int32_t)dist;
+		*y_out = (dy * scale_num) / (int32_t)dist;
+	} else {
+		*x_out = 0;
+		*y_out = 0;
+	}
+
+	return 0;
+}
+
+/**
   * @brief  Axes data processing routine
 	*	@param	p_dev_config: Pointer to device configuration structure
   * @retval None
   */
 void AxesProcess (dev_config_t * p_dev_config)
 {
-	
+
 	int32_t tmp[MAX_AXIS_NUM];
 	float tmpf;
-	
+	uint8_t circular_processed[MAX_AXIS_NUM] = {0};  // Track axes processed with circular deadband
+
 	for (uint8_t i=0; i<MAX_AXIS_NUM; i++)
 	{
-		
+
 		int8_t source = p_dev_config->axis_config[i].source_main;
 		uint8_t channel = p_dev_config->axis_config[i].channel;
 		uint8_t address = p_dev_config->axis_config[i].i2c_address;
-		
+
 		if (source >= 0)		// source SPI sensors or internal ADC
-		{			
+		{
 			if (p_dev_config->pins[source] == AXIS_ANALOG)					// source analog
-			{	
+			{
 				uint8_t k=0;
 				// search for needed sensor
 				for (k=0; k<MAX_AXIS_NUM; k++)
 				{
 					if (sensors[k].source == source) break;
 				}
-				
+
 				if (p_dev_config->axis_config[i].offset_angle > 0)
 				{
 						tmp[i] = adc_data[sensors[k].curr_channel] - p_dev_config->axis_config[i].offset_angle * 170;
@@ -658,7 +737,7 @@ void AxesProcess (dev_config_t * p_dev_config)
 				else
 				{
 					tmp[i] = adc_data[sensors[k].curr_channel];
-				}		
+				}
 				raw_axis_data[i] = map2(tmp[i], 0, 4095, AXIS_MIN_VALUE, AXIS_MAX_VALUE);
 			}
 			else if (p_dev_config->pins[source] == MCP3202_CS)				// source MCP3202
@@ -682,7 +761,7 @@ void AxesProcess (dev_config_t * p_dev_config)
 				}
 				raw_axis_data[i] = map2(tmp[i], 0, 4095, AXIS_MIN_VALUE, AXIS_MAX_VALUE);
 			}
-	
+
 		}
 		else if (source == (axis_source_t)SOURCE_I2C)				// source I2C sensor
 		{
@@ -694,7 +773,7 @@ void AxesProcess (dev_config_t * p_dev_config)
 			}
 			// get data
 			if (sensors[k].type == ADS1115)
-			{					
+			{
 				if (p_dev_config->axis_config[i].offset_angle > 0)	// offset enabled
 				{
 					tmp[i] = ADS1115_GetData(&sensors[k], channel) - p_dev_config->axis_config[i].offset_angle * 2730;
@@ -715,43 +794,108 @@ void AxesProcess (dev_config_t * p_dev_config)
 				raw_axis_data[i] = map2(tmp[i], 0, 32767, AXIS_MIN_VALUE, AXIS_MAX_VALUE);
 			}
 			}
-		}				
-		
-		
-		
+		}
+
+
+
 		// Filtering
 		tmp[i] = Filter(raw_axis_data[i], filter_buffer[i], p_dev_config->axis_config[i].filter);
 
-				// Deadband processing and scaling		
-		if (!p_dev_config->axis_config[i].is_dynamic_deadband)
+		// Deadband processing and scaling
+		if (p_dev_config->axis_config[i].is_circular_deadband && !circular_processed[i])
 		{
-			// Scale output data
-			tmp[i] = map3( tmp[i], 
-									 p_dev_config->axis_config[i].calib_min,
-									 p_dev_config->axis_config[i].calib_center,    
-									 p_dev_config->axis_config[i].calib_max, 
-									 AXIS_MIN_VALUE,
-									 AXIS_CENTER_VALUE,
-									 AXIS_MAX_VALUE,
-									 p_dev_config->axis_config[i].deadband_size); 
-		}
-		else
-		{
-			// Scale output data
-			tmp[i] = map3( tmp[i],
-									 p_dev_config->axis_config[i].calib_min,
-									 p_dev_config->axis_config[i].calib_center,    
-									 p_dev_config->axis_config[i].calib_max, 
-									 AXIS_MIN_VALUE,
-									 AXIS_CENTER_VALUE,
-									 AXIS_MAX_VALUE,
-									 p_dev_config->axis_config[i].deadband_size);  // <-- restoring Deadband in addition to dynamic deadband
-		
-			if (iabs(tmp[i] - scaled_axis_data[i]) < 3*3*p_dev_config->axis_config[i].deadband_size &&			// 3*3*deadband_size = 3 sigma
-					IsDynamicDeadbandHolding(tmp[i], deadband_buffer[i], p_dev_config->axis_config[i].deadband_size))
+			// CIRCULAR DEADBAND MODE
+			uint8_t pair_idx = p_dev_config->axis_config[i].circular_pair_axis;
+
+			// Only process if paired axis is valid and not yet processed
+			if (pair_idx < MAX_AXIS_NUM && pair_idx != i && !circular_processed[pair_idx])
 			{
-				tmp[i] = scaled_axis_data[i];			// keep value if deadband confidition is true
-			}	
+				int32_t x_scaled, y_scaled;
+
+				// First scale both axes to output range WITHOUT deadband (deadband_size=0)
+				int32_t x_value = map3(tmp[i],
+					p_dev_config->axis_config[i].calib_min,
+					p_dev_config->axis_config[i].calib_center,
+					p_dev_config->axis_config[i].calib_max,
+					AXIS_MIN_VALUE,
+					AXIS_CENTER_VALUE,
+					AXIS_MAX_VALUE,
+					0);  // No deadband in initial scaling
+
+				int32_t y_value = map3(tmp[pair_idx],
+					p_dev_config->axis_config[pair_idx].calib_min,
+					p_dev_config->axis_config[pair_idx].calib_center,
+					p_dev_config->axis_config[pair_idx].calib_max,
+					AXIS_MIN_VALUE,
+					AXIS_CENTER_VALUE,
+					AXIS_MAX_VALUE,
+					0);  // No deadband in initial scaling
+
+				// Apply circular deadband to axis pair
+				ApplyCircularDeadband(
+					x_value,
+					y_value,
+					AXIS_CENTER_VALUE,  // Center in output space
+					AXIS_CENTER_VALUE,
+					p_dev_config->axis_config[i].deadband_size,
+					&x_scaled,
+					&y_scaled
+				);
+
+				// Add center offset to get final values
+				tmp[i] = AXIS_CENTER_VALUE + x_scaled;
+				tmp[pair_idx] = AXIS_CENTER_VALUE + y_scaled;
+
+				// Mark both axes as processed
+				circular_processed[i] = 1;
+				circular_processed[pair_idx] = 1;
+			}
+			else
+			{
+				// Paired axis invalid or already processed, fall back to rectangular deadband
+				tmp[i] = map3( tmp[i],
+					p_dev_config->axis_config[i].calib_min,
+					p_dev_config->axis_config[i].calib_center,
+					p_dev_config->axis_config[i].calib_max,
+					AXIS_MIN_VALUE,
+					AXIS_CENTER_VALUE,
+					AXIS_MAX_VALUE,
+					p_dev_config->axis_config[i].deadband_size);
+			}
+		}
+		else if (!circular_processed[i])
+		{
+			// RECTANGULAR DEADBAND MODE (existing behavior)
+			if (!p_dev_config->axis_config[i].is_dynamic_deadband)
+			{
+				// Scale output data
+				tmp[i] = map3( tmp[i],
+										 p_dev_config->axis_config[i].calib_min,
+										 p_dev_config->axis_config[i].calib_center,
+										 p_dev_config->axis_config[i].calib_max,
+										 AXIS_MIN_VALUE,
+										 AXIS_CENTER_VALUE,
+										 AXIS_MAX_VALUE,
+										 p_dev_config->axis_config[i].deadband_size);
+			}
+			else
+			{
+				// Scale output data
+				tmp[i] = map3( tmp[i],
+										 p_dev_config->axis_config[i].calib_min,
+										 p_dev_config->axis_config[i].calib_center,
+										 p_dev_config->axis_config[i].calib_max,
+										 AXIS_MIN_VALUE,
+										 AXIS_CENTER_VALUE,
+										 AXIS_MAX_VALUE,
+										 p_dev_config->axis_config[i].deadband_size);  // <-- restoring Deadband in addition to dynamic deadband
+
+				if (iabs(tmp[i] - scaled_axis_data[i]) < 3*3*p_dev_config->axis_config[i].deadband_size &&			// 3*3*deadband_size = 3 sigma
+						IsDynamicDeadbandHolding(tmp[i], deadband_buffer[i], p_dev_config->axis_config[i].deadband_size))
+				{
+					tmp[i] = scaled_axis_data[i];			// keep value if deadband confidition is true
+				}
+			}
 		}
 		
 		// Shaping
