@@ -75,7 +75,25 @@ void AppConfigInit (dev_config_t * p_dev_config)
 {
 	int8_t prev_a = -1;
 	int8_t prev_b = -1;
-	
+
+	// Defensive sanitize: the configurator UI only touches buttons[0..31],
+	// and the button_t struct has no volatile "I'm explicitly unconfigured"
+	// marker — an all-zeros entry (physical_num=0, is_disabled=0,
+	// type=BUTTON_NORMAL) looks identical to a valid button mapped to
+	// physical position 0. If flash was ever written with zero-init for
+	// buttons[32..127] (e.g. during the buggy period when main.h's init_config
+	// dropped those entries, or if the configurator round-trips bad flash
+	// data), 96 ghost buttons all mapped to physical position 0 would fire
+	// whenever physical bit 0 goes active (typically trigger stage 2 for
+	// Warthog-style grips). This loop runs every boot in RAM only — flash
+	// is untouched, so force anchors, serial number, and other persistent
+	// data are preserved.
+	for (uint8_t i = 32; i < MAX_BUTTONS_NUM; i++)
+	{
+		p_dev_config->buttons[i].physical_num = -1;
+		p_dev_config->buttons[i].is_disabled = 1;
+	}
+
 	app_config.axis = 0;
 	app_config.axis_cnt = 0;
 	app_config.buttons_cnt = 0;
@@ -135,6 +153,7 @@ void AppConfigInit (dev_config_t * p_dev_config)
 			app_config.buttons_cnt++;
 		}
 	}
+
 }
 
 void AppConfigGet (app_config_t * p_app_config)

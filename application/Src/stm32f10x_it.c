@@ -261,7 +261,8 @@ void TIM2_IRQHandler(void)
 				report_buf[0] = REPORT_ID_PARAM;
 				params_report.firmware_version = FIRMWARE_VERSION;
 				memcpy(params_report.axis_data, joy_report.axis_data, sizeof(params_report.axis_data));
-				
+
+
 				if (report == 0)
 				{
 					report_buf[1] = 0;

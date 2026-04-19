@@ -56,19 +56,42 @@ int main(void)
 	// getting configuration from flash memory
 	DevConfigGet(&dev_config);
 	// set default config at first startup
-if ((dev_config.firmware_version & 0xFFF0) != (FIRMWARE_VERSION &0xFFF0))
-{
-    DevConfigSet((dev_config_t *) &init_config);
-    DevConfigGet(&dev_config);
-}
-
+	if ((dev_config.firmware_version & 0xFFF0) != (FIRMWARE_VERSION &0xFFF0))
+	{
+	    DevConfigSet((dev_config_t *) &init_config);
+	    DevConfigGet(&dev_config);
+	}
 
 	AppConfigInit(&dev_config);
+
+	// Auto-recovery safety net: if the loaded config produces zero enabled
+	// axes AND zero enabled buttons AND zero POVs, the HID descriptor will
+	// be effectively empty and the device won't show any inputs in joy.cpl.
+	// This can happen if a previous configurator write disabled everything
+	// or if the flash became inconsistent. Force-reload init_config to
+	// recover a usable state.
+	{
+		app_config_t tmp_app_config;
+		AppConfigGet(&tmp_app_config);
+		if (tmp_app_config.axis_cnt == 0 &&
+		    tmp_app_config.buttons_cnt == 0 &&
+		    tmp_app_config.pov_cnt == 0)
+		{
+			DevConfigSet((dev_config_t *) &init_config);
+			DevConfigGet(&dev_config);
+			AppConfigInit(&dev_config);
+		}
+	}
 	
+	// Initialize device info BEFORE USB so product string reflects the
+	// per-device name (e.g. "Invictus VFT Sensor") on first enumeration.
+	device_info_init();
+	USB_UpdateProductString(g_device_info.device_name);
+
 	USB_HW_Init();
 	// wait for USB initialization
-	Delay_ms(1000);	
-	
+	Delay_ms(1000);
+
 	IO_Init(&dev_config);
 
 	ShiftRegistersInit(&dev_config);
@@ -78,13 +101,7 @@ if ((dev_config.firmware_version & 0xFFF0) != (FIRMWARE_VERSION &0xFFF0))
 	// init sensors
 	AxesInit(&dev_config);
 	// start sequential periphery reading
-	Timers_Init(&dev_config);		
-	
-	// Initialize device info from flash
-	device_info_init();
-
-	// Update USB product string from device_name
-	USB_UpdateProductString(g_device_info.device_name);
+	Timers_Init(&dev_config);
 
   while (1)
   {		

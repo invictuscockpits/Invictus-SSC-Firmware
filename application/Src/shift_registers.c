@@ -25,7 +25,7 @@
 #include "spi.h"
 
 
-shift_reg_t shift_registers[5]; //changed from 4 to 5 to allow Tianhang grip to function properly. May break shift register functionailty so change back if it does.
+shift_reg_t shift_registers[MAX_SHIFT_REG_NUM];
 
 /**
   * @brief  Initializate shift registers states at startup
@@ -51,33 +51,33 @@ void ShiftRegistersInit(dev_config_t * p_dev_config)
 	// set data pins
 	for (int i=0; i<USED_PINS_NUM; i++)
 	{
-		if (p_dev_config->pins[i] == SHIFT_REG_DATA && i > prev_data)
+		if (p_dev_config->pins[i] == SHIFT_REG_DATA && i > prev_data && pos < MAX_SHIFT_REG_NUM)
 		{
-			shift_registers[pos].pin_data = i;				
+			shift_registers[pos].pin_data = i;
 			prev_data = i;
-			pos++;			
+			pos++;
 		}
 	}
 	// set latch pins
 	pos = 0;
 	for (int i=0; i<USED_PINS_NUM; i++)
 	{
-		if (p_dev_config->pins[i] == SHIFT_REG_LATCH && i > prev_latch)
+		if (p_dev_config->pins[i] == SHIFT_REG_LATCH && i > prev_latch && pos < MAX_SHIFT_REG_NUM)
 		{
-			shift_registers[pos].pin_latch = i;					
+			shift_registers[pos].pin_latch = i;
 			prev_latch = i;
-			pos++;			
+			pos++;
 		}
 	}
 	// set clk pins
 	pos = 0;
 	for (int i=0; i<USED_PINS_NUM; i++)
 	{
-		if (p_dev_config->pins[i] == SHIFT_REG_CLK && i > prev_clk)
+		if (p_dev_config->pins[i] == SHIFT_REG_CLK && i > prev_clk && pos < MAX_SHIFT_REG_NUM)
 		{
-			shift_registers[pos].pin_clk = i;					
+			shift_registers[pos].pin_clk = i;
 			prev_clk = i;
-			pos++;			
+			pos++;
 		}
 	}
 	// if latch or clk pin not set and data pin is set than set last defined latch pin
@@ -102,9 +102,9 @@ void ShiftRegistersInit(dev_config_t * p_dev_config)
   */
 void ShiftRegisterRead(shift_reg_t * shift_register, uint8_t * data)
 {
-	 
+
 	uint8_t reg_cnt;
-	
+
 	if (shift_register->type == CD4021_PULL_DOWN || shift_register->type == CD4021_PULL_UP)		// positive polarity
 	{
 		// set SCK low
@@ -126,25 +126,29 @@ void ShiftRegisterRead(shift_reg_t * shift_register, uint8_t * data)
 	}
 	
 	reg_cnt = (uint8_t) ((float)shift_register->button_cnt/8.0);		// number of data bytes to read
-	for (uint8_t i=0; i<reg_cnt; i++)
+	// Renamed outer loop var from `i` to `byte_idx` to avoid shadowing with
+	// the inner delay-loop `i`. Keil's armcc5 handled the shadowing fine;
+	// ARM GCC at -O2 may have treated the inner `i` ambiguously, leading to
+	// data[i] possibly being written at the wrong byte index.
+	for (uint8_t byte_idx = 0; byte_idx < reg_cnt; byte_idx++)
 	{
 		uint8_t mask = 0x80;
-		
-		data[i] = 0;
-		
+
+		data[byte_idx] = 0;
+
 		if (shift_register->type == HC165_PULL_DOWN || shift_register->type == CD4021_PULL_DOWN)
 		{
 			do
 			{
 				pin_config[shift_register->pin_clk].port->ODR &= ~pin_config[shift_register->pin_clk].pin;
-				for (int i=0; i<SHIFTREG_TICK_DELAY; i++) __NOP();				
+				for (int tick = 0; tick < SHIFTREG_TICK_DELAY; tick++) __NOP();
 				if(pin_config[shift_register->pin_data].port->IDR & pin_config[shift_register->pin_data].pin)
 				{
-					data[i] |= mask; 
+					data[byte_idx] |= mask;
 				}
-				pin_config[shift_register->pin_clk].port->ODR |= pin_config[shift_register->pin_clk].pin;		
-				for (int i=0; i<SHIFTREG_TICK_DELAY; i++) __NOP();
-				
+				pin_config[shift_register->pin_clk].port->ODR |= pin_config[shift_register->pin_clk].pin;
+				for (int tick = 0; tick < SHIFTREG_TICK_DELAY; tick++) __NOP();
+
 				mask = mask >> 1;
 			} while (mask);
 		}
@@ -153,18 +157,19 @@ void ShiftRegisterRead(shift_reg_t * shift_register, uint8_t * data)
 			do
 			{
 				pin_config[shift_register->pin_clk].port->ODR &= ~pin_config[shift_register->pin_clk].pin;
-				for (int i=0; i<SHIFTREG_TICK_DELAY; i++) __NOP();
+				for (int tick = 0; tick < SHIFTREG_TICK_DELAY; tick++) __NOP();
 				if(!(pin_config[shift_register->pin_data].port->IDR & pin_config[shift_register->pin_data].pin))
 				{
-					data[i] |= mask; 
-				}				
+					data[byte_idx] |= mask;
+				}
 				pin_config[shift_register->pin_clk].port->ODR |= pin_config[shift_register->pin_clk].pin;
-				for (int i=0; i<SHIFTREG_TICK_DELAY; i++) __NOP();
+				for (int tick = 0; tick < SHIFTREG_TICK_DELAY; tick++) __NOP();
 
 				mask = mask >> 1;
 			} while (mask);
 		}
 	}
+
 }
 
 /**
