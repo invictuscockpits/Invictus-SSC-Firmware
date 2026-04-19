@@ -32,7 +32,7 @@
 
 //#define DEBUG
 
-#define FIRMWARE_VERSION					0x2420    // v2.4.2.0 beta
+#define FIRMWARE_VERSION					0x2421    // v2.4.2.1 beta (circular deadband fixes)
 #define USED_PINS_NUM							30				// Contstant for HOTAS Control boards
 #define MAX_AXIS_NUM							8					// max 8
 #define MAX_BUTTONS_NUM						128				// power of 2, max 128

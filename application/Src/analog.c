@@ -667,9 +667,16 @@ static uint8_t ApplyCircularDeadband(
 	// Calculate squared distance (avoid sqrt for performance check)
 	int32_t dist_squared = dx*dx + dy*dy;
 
-	// Calculate deadband radius squared (scale by calibration range)
-	// Assume typical range of 2000 counts per axis
-	int32_t radius_scaled = (deadband_radius * 2000) >> 8;  // Same scaling as map3
+	// Calculate deadband radius squared. Scale `deadband_radius` (the user's
+	// 0..127 GUI value, same field as rectangular `deadband_size`) to output
+	// space so a given slider value produces a comparable deadband in either
+	// mode. Formula matches map3()'s rectangular math: full-half-range * val >> 8.
+	// For deadband_radius=127 this yields AXIS_MAX_VALUE * 127 / 256 ≈ 16251
+	// counts — roughly 50% of the axis half-range — matching how rectangular
+	// deadband feels at the same numeric value. The previous formula used a
+	// hardcoded 2000-count assumption that produced only ~3% of axis range at
+	// max slider, which made circular deadband feel nearly absent.
+	int32_t radius_scaled = ((int32_t)AXIS_MAX_VALUE * deadband_radius) >> 8;
 	int32_t radius_squared = radius_scaled * radius_scaled;
 
 	// If inside circular deadband, return center
@@ -679,17 +686,40 @@ static uint8_t ApplyCircularDeadband(
 		return 1;
 	}
 
-	// Outside deadband: scale linearly from deadband edge to full range
-	// Calculate radial distance
+	// Outside deadband: rescale the radial distance so the deadband edge maps
+	// to 0 output and a position at AXIS_MAX_VALUE distance (the rim of the
+	// notional circular range) maps back to full AXIS_MAX_VALUE output. Without
+	// this renormalization the max output would be (AXIS_MAX_VALUE - radius),
+	// which shows up as a flat-topped output of e.g. 31743 instead of 32767.
+	//
+	// Scale formula:
+	//   new_radial_distance = (dist - radius) * AXIS_MAX_VALUE / (AXIS_MAX_VALUE - radius)
+	//   x_out = dx * new_radial_distance / dist   (keeps the direction vector)
+	//   y_out = dy * new_radial_distance / dist
+	//
+	// int64_t intermediates because dx * (dist - radius) * AXIS_MAX_VALUE can
+	// reach ~5e13, well past int32_t's ~2.15e9 ceiling. Final result fits back
+	// into int32_t.
 	uint32_t dist = isqrt((uint32_t)dist_squared);
-	uint32_t radius = (uint32_t)radius_scaled;
+	int32_t radius = radius_scaled;
 
-	if (dist > 0) {
-		// Scale factor = (dist - radius) / dist
-		// New position = offset * scale_factor
-		int32_t scale_num = (int32_t)(dist - radius);
-		*x_out = (dx * scale_num) / (int32_t)dist;
-		*y_out = (dy * scale_num) / (int32_t)dist;
+	if (dist > 0 && (int32_t)AXIS_MAX_VALUE > radius) {
+		int64_t delta_dist = (int64_t)((int32_t)dist - radius);
+		int64_t axis_span = (int64_t)AXIS_MAX_VALUE - radius;
+		int64_t scaled_dist = (delta_dist * (int64_t)AXIS_MAX_VALUE) / axis_span;
+
+		int64_t x_result = ((int64_t)dx * scaled_dist) / (int64_t)dist;
+		int64_t y_result = ((int64_t)dy * scaled_dist) / (int64_t)dist;
+
+		// Clamp for corner positions where dist > AXIS_MAX_VALUE (square-range
+		// stick pushed into its diagonal corners).
+		if (x_result > AXIS_MAX_VALUE) x_result = AXIS_MAX_VALUE;
+		else if (x_result < AXIS_MIN_VALUE) x_result = AXIS_MIN_VALUE;
+		if (y_result > AXIS_MAX_VALUE) y_result = AXIS_MAX_VALUE;
+		else if (y_result < AXIS_MIN_VALUE) y_result = AXIS_MIN_VALUE;
+
+		*x_out = (int32_t)x_result;
+		*y_out = (int32_t)y_result;
 	} else {
 		*x_out = 0;
 		*y_out = 0;
@@ -710,6 +740,17 @@ void AxesProcess (dev_config_t * p_dev_config)
 	float tmpf;
 	uint8_t circular_processed[MAX_AXIS_NUM] = {0};  // Track axes processed with circular deadband
 
+	// ============================================================
+	// Pass 1: read raw sensor values and filter every axis.
+	// This MUST complete before Pass 2 begins because circular
+	// deadband pairs read tmp[pair_idx] during their processing —
+	// that value must already be filtered and populated for every
+	// axis regardless of which index holds the circular flag.
+	// Combining both in a single loop (the prior design) left the
+	// paired axis's tmp[] as stale/undefined when the lower-indexed
+	// axis carried the circular flag, and overwrote the circular
+	// result with the raw-filtered value on the pair's own iteration.
+	// ============================================================
 	for (uint8_t i=0; i<MAX_AXIS_NUM; i++)
 	{
 
@@ -800,6 +841,18 @@ void AxesProcess (dev_config_t * p_dev_config)
 
 		// Filtering
 		tmp[i] = Filter(raw_axis_data[i], filter_buffer[i], p_dev_config->axis_config[i].filter);
+	}
+
+	// ============================================================
+	// Pass 2: deadband, shaping, resolution, inversion, prescaling,
+	// and the per-axis button/trim/centering section. tmp[] now holds
+	// filtered values for all axes, so circular deadband can freely
+	// cross-reference the paired axis and iteration order no longer
+	// matters. circular_processed[] still gates double-processing
+	// when both axes of a pair have the circular flag set.
+	// ============================================================
+	for (uint8_t i=0; i<MAX_AXIS_NUM; i++)
+	{
 
 		// Deadband processing and scaling
 		if (p_dev_config->axis_config[i].is_circular_deadband && !circular_processed[i])
