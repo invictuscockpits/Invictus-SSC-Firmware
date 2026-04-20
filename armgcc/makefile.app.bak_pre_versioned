@@ -3,12 +3,6 @@
 ######################################
 TARGET = InvictusHOTAS
 
-# Versioned output: extracts FIRMWARE_VERSION from common_defines.h and
-# emits $(TARGET)v<major>.<minor>.<patch>.<build>.bin alongside the standard bin.
-FIRMWARE_VERSION_HEX := $(shell grep -m1 -E '^[[:space:]]*\#define[[:space:]]+FIRMWARE_VERSION' ../application/Inc/common_defines.h | sed -E 's/.*0x([0-9A-Fa-f]{4}).*/\1/')
-FIRMWARE_VERSION_DOTTED := $(shell echo $(FIRMWARE_VERSION_HEX) | sed -E 's/(.)(.)(.)(.)/\1.\2.\3.\4/')
-VERSIONED_BIN  = $(BUILD_DIR)/$(TARGET)v$(FIRMWARE_VERSION_DOTTED).bin
-
 
 ######################################
 # building variables
@@ -162,7 +156,7 @@ LIBDIR =
 LDFLAGS = $(MCU) -specs=nano.specs -T$(LDSCRIPT) $(LIBDIR) $(LIBS) -Wl,-Map=$(BUILD_DIR)/$(TARGET).map,--cref -Wl,--gc-sections
 
 # default action: build all
-all: $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).bin $(BUILD_DIR)/$(TARGET).hex $(VERSIONED_BIN)
+all: $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).bin $(BUILD_DIR)/$(TARGET).hex 
 #all: $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).bin
 
 #######################################
@@ -191,10 +185,6 @@ $(BUILD_DIR)/%.hex: $(BUILD_DIR)/%.elf | $(BUILD_DIR)
 $(BUILD_DIR)/%.bin: $(BUILD_DIR)/%.elf | $(BUILD_DIR)
 	$(BIN) $< $@	
 	
-$(VERSIONED_BIN): $(BUILD_DIR)/$(TARGET).bin
-	cp $< $@
-	@echo "Versioned binary: $@"
-
 $(BUILD_DIR):
 	mkdir -p $@		
 

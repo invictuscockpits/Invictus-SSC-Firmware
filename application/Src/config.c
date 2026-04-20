@@ -75,7 +75,16 @@ void AppConfigInit (dev_config_t * p_dev_config)
 {
 	int8_t prev_a = -1;
 	int8_t prev_b = -1;
-	
+
+	// Sanitize buttons[32..127] every boot (RAM only, flash untouched).
+	// Configurator only exposes buttons[0..31]; ensures unexposed slots
+	// can't be left in a ghost-button state by stale flash data.
+	for (uint8_t i = 32; i < MAX_BUTTONS_NUM; i++)
+	{
+		p_dev_config->buttons[i].physical_num = -1;
+		p_dev_config->buttons[i].is_disabled = 1;
+	}
+
 	app_config.axis = 0;
 	app_config.axis_cnt = 0;
 	app_config.buttons_cnt = 0;
@@ -135,6 +144,7 @@ void AppConfigInit (dev_config_t * p_dev_config)
 			app_config.buttons_cnt++;
 		}
 	}
+
 }
 
 void AppConfigGet (app_config_t * p_app_config)

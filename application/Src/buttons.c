@@ -34,7 +34,13 @@ uint8_t												pov_pos[MAX_POVS_NUM];
 uint8_t												shifts_state = 0;
 uint8_t												a2b_first = 0;
 uint8_t												a2b_last = 0;
-uint8_t												button_mutex = 0;
+// volatile required — written in main-loop context (ButtonsReadLogical)
+// and read in ISR context (ButtonsGet called from TIM2_IRQHandler).
+// Missing this qualifier was a regression from original FreeJoy; Keil's
+// armcc handled it acceptably but ARM GCC caches the value in registers,
+// causing race conditions on the button state arrays and intermittent
+// whole-byte-pressed bursts.
+volatile uint8_t								button_mutex = 0;
 
 /**
   * @brief  Processing debounce for raw buttons input
