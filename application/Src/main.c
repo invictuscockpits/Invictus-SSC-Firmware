@@ -64,12 +64,8 @@ int main(void)
 
 	AppConfigInit(&dev_config);
 
-	// Auto-recovery safety net: if the loaded config produces zero enabled
-	// axes AND zero enabled buttons AND zero POVs, the HID descriptor will
-	// be effectively empty and the device won't show any inputs in joy.cpl.
-	// This can happen if a previous configurator write disabled everything
-	// or if the flash became inconsistent. Force-reload init_config to
-	// recover a usable state.
+	// Force-reload init_config if the loaded config would produce an
+	// empty HID descriptor (no axes, buttons, or POVs).
 	{
 		app_config_t tmp_app_config;
 		AppConfigGet(&tmp_app_config);
@@ -82,9 +78,9 @@ int main(void)
 			AppConfigInit(&dev_config);
 		}
 	}
-	
-	// Initialize device info BEFORE USB so product string reflects the
-	// per-device name (e.g. "Invictus VFT Sensor") on first enumeration.
+
+	// device_info must init before USB so the product string is correct
+	// on the first enumeration Windows sees.
 	device_info_init();
 	USB_UpdateProductString(g_device_info.device_name);
 

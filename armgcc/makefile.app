@@ -3,13 +3,8 @@
 ######################################
 TARGET = InvictusHOTAS
 
-######################################
-# versioned output filename
-######################################
-# Extract FIRMWARE_VERSION from common_defines.h so the .bin name tracks the
-# #define automatically. The header has a line of the form:
-#   #define FIRMWARE_VERSION          0x2421    // v2.4.2.1 ...
-# We grab the four hex digits and put dots between them, e.g. 2421 -> 2.4.2.1.
+# Versioned output: extracts FIRMWARE_VERSION from common_defines.h and
+# emits $(TARGET)v<major>.<minor>.<patch>.<build>.bin alongside the standard bin.
 FIRMWARE_VERSION_HEX := $(shell grep -m1 -E '^[[:space:]]*\#define[[:space:]]+FIRMWARE_VERSION' ../application/Inc/common_defines.h | sed -E 's/.*0x([0-9A-Fa-f]{4}).*/\1/')
 FIRMWARE_VERSION_DOTTED := $(shell echo $(FIRMWARE_VERSION_HEX) | sed -E 's/(.)(.)(.)(.)/\1.\2.\3.\4/')
 VERSIONED_BIN  = $(BUILD_DIR)/$(TARGET)v$(FIRMWARE_VERSION_DOTTED).bin
@@ -196,9 +191,6 @@ $(BUILD_DIR)/%.hex: $(BUILD_DIR)/%.elf | $(BUILD_DIR)
 $(BUILD_DIR)/%.bin: $(BUILD_DIR)/%.elf | $(BUILD_DIR)
 	$(BIN) $< $@	
 	
-# Versioned copy of the primary .bin, with FIRMWARE_VERSION embedded in the
-# filename (e.g. InvictusHOTASv2.4.2.1.bin). Produced alongside the standard
-# InvictusHOTAS.bin so release packaging can grab either.
 $(VERSIONED_BIN): $(BUILD_DIR)/$(TARGET).bin
 	cp $< $@
 	@echo "Versioned binary: $@"

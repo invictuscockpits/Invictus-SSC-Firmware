@@ -125,11 +125,7 @@ void ShiftRegisterRead(shift_reg_t * shift_register, uint8_t * data)
 		pin_config[shift_register->pin_latch].port->ODR |= pin_config[shift_register->pin_latch].pin;			
 	}
 	
-	reg_cnt = (uint8_t) ((float)shift_register->button_cnt/8.0);		// number of data bytes to read
-	// Renamed outer loop var from `i` to `byte_idx` to avoid shadowing with
-	// the inner delay-loop `i`. Keil's armcc5 handled the shadowing fine;
-	// ARM GCC at -O2 may have treated the inner `i` ambiguously, leading to
-	// data[i] possibly being written at the wrong byte index.
+	reg_cnt = (uint8_t) ((float)shift_register->button_cnt/8.0);
 	for (uint8_t byte_idx = 0; byte_idx < reg_cnt; byte_idx++)
 	{
 		uint8_t mask = 0x80;

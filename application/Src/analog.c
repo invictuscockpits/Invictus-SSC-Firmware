@@ -60,6 +60,82 @@ analog_data_t deadband_buffer[MAX_AXIS_NUM][DEADBAND_BUF_SIZE];
 logical_buttons_state_t axis_buttons[MAX_AXIS_NUM][3];
 int32_t	axis_trim_value[MAX_AXIS_NUM];
 
+// Hysteresis compensation per-axis state.
+static uint32_t center_snap_last_significant_ms[MAX_AXIS_NUM] = {0};
+static uint32_t center_snap_last_movement_ms[MAX_AXIS_NUM]   = {0};
+static int32_t  center_snap_prev_raw[MAX_AXIS_NUM]           = {0};
+static int32_t  center_snap_rest_raw[MAX_AXIS_NUM]           = {0};
+static uint8_t  center_snap_active[MAX_AXIS_NUM]             = {0};
+
+#define CENTER_SNAP_HOLD_WINDOW_MS   750
+#define CENTER_SNAP_STILLNESS_MS     100
+
+unsigned int iabs (int x);
+
+/**
+  * @brief  Captures rest position after a release and shifts pre-map3
+  *         values so rest maps to calib_center. Called from both
+  *         deadband paths; mutates tmp[axis_idx] when the latch is active.
+  */
+static void ApplyHysteresisCompensation(
+	dev_config_t * p_dev_config,
+	uint8_t axis_idx,
+	int32_t * tmp,
+	uint32_t now_ms)
+{
+	int32_t cur_raw = tmp[axis_idx];
+	int32_t cal_ctr = p_dev_config->axis_config[axis_idx].calib_center;
+
+	int32_t calib_span = p_dev_config->axis_config[axis_idx].calib_max
+	                   - p_dev_config->axis_config[axis_idx].calib_min;
+	if (calib_span < 1) calib_span = 1;
+
+	int32_t near_zero_thresh      = calib_span / 10;
+	int32_t release_detect_thresh = calib_span / 4;
+	int32_t motion_delta          = calib_span / 32;
+	int32_t exit_delta            = calib_span / 120;
+
+	int32_t abs_offset = iabs(cur_raw - cal_ctr);
+
+	if (abs_offset > release_detect_thresh)
+	{
+		center_snap_last_significant_ms[axis_idx] = now_ms;
+	}
+	if (iabs(cur_raw - center_snap_prev_raw[axis_idx]) > motion_delta)
+	{
+		center_snap_last_movement_ms[axis_idx] = now_ms;
+	}
+	center_snap_prev_raw[axis_idx] = cur_raw;
+
+	if (abs_offset < near_zero_thresh &&
+		(now_ms - center_snap_last_significant_ms[axis_idx]) < CENTER_SNAP_HOLD_WINDOW_MS &&
+		(now_ms - center_snap_last_movement_ms[axis_idx])   > CENTER_SNAP_STILLNESS_MS)
+	{
+		if (!center_snap_active[axis_idx] ||
+			iabs(cur_raw - center_snap_rest_raw[axis_idx]) > exit_delta)
+		{
+			center_snap_active[axis_idx] = 1;
+			center_snap_rest_raw[axis_idx] = cur_raw;
+		}
+	}
+
+	if (center_snap_active[axis_idx])
+	{
+		int32_t delta = cur_raw - center_snap_rest_raw[axis_idx];
+
+		if (iabs(delta) < exit_delta)
+		{
+			tmp[axis_idx] = cal_ctr;
+		}
+		else
+		{
+			int32_t shifted = (delta > 0) ? (delta - exit_delta)
+			                              : (delta + exit_delta);
+			tmp[axis_idx] = cal_ctr + shifted;
+		}
+	}
+}
+
 uint8_t adc_cnt = 0;
 uint8_t sensors_cnt = 0;
 	
@@ -664,42 +740,24 @@ static uint8_t ApplyCircularDeadband(
 	int32_t dx = x_value - x_center;
 	int32_t dy = y_value - y_center;
 
-	// Calculate squared distance (avoid sqrt for performance check)
 	int32_t dist_squared = dx*dx + dy*dy;
 
-	// Calculate deadband radius squared. Scale `deadband_radius` (the user's
-	// 0..127 GUI value, same field as rectangular `deadband_size`) to output
-	// space so a given slider value produces a comparable deadband in either
-	// mode. Formula matches map3()'s rectangular math: full-half-range * val >> 8.
-	// For deadband_radius=127 this yields AXIS_MAX_VALUE * 127 / 256 ≈ 16251
-	// counts — roughly 50% of the axis half-range — matching how rectangular
-	// deadband feels at the same numeric value. The previous formula used a
-	// hardcoded 2000-count assumption that produced only ~3% of axis range at
-	// max slider, which made circular deadband feel nearly absent.
+	// Radius scales to AXIS_MAX_VALUE * deadband / 256, matching map3()'s
+	// rectangular deadband math so the same slider value feels comparable
+	// in circular and rectangular modes.
 	int32_t radius_scaled = ((int32_t)AXIS_MAX_VALUE * deadband_radius) >> 8;
 	int32_t radius_squared = radius_scaled * radius_scaled;
 
-	// If inside circular deadband, return center
 	if (dist_squared <= radius_squared) {
-		*x_out = 0;  // AXIS_CENTER_VALUE will be added later
+		*x_out = 0;
 		*y_out = 0;
 		return 1;
 	}
 
-	// Outside deadband: rescale the radial distance so the deadband edge maps
-	// to 0 output and a position at AXIS_MAX_VALUE distance (the rim of the
-	// notional circular range) maps back to full AXIS_MAX_VALUE output. Without
-	// this renormalization the max output would be (AXIS_MAX_VALUE - radius),
-	// which shows up as a flat-topped output of e.g. 31743 instead of 32767.
-	//
-	// Scale formula:
-	//   new_radial_distance = (dist - radius) * AXIS_MAX_VALUE / (AXIS_MAX_VALUE - radius)
-	//   x_out = dx * new_radial_distance / dist   (keeps the direction vector)
-	//   y_out = dy * new_radial_distance / dist
-	//
-	// int64_t intermediates because dx * (dist - radius) * AXIS_MAX_VALUE can
-	// reach ~5e13, well past int32_t's ~2.15e9 ceiling. Final result fits back
-	// into int32_t.
+	// Rescale radial distance so deadband edge -> 0 and the rim of the
+	// circular range (distance = AXIS_MAX_VALUE) -> full output. int64
+	// intermediates to avoid overflow; clamp handles square-corner inputs
+	// where dist > AXIS_MAX_VALUE.
 	uint32_t dist = isqrt((uint32_t)dist_squared);
 	int32_t radius = radius_scaled;
 
@@ -711,8 +769,6 @@ static uint8_t ApplyCircularDeadband(
 		int64_t x_result = ((int64_t)dx * scaled_dist) / (int64_t)dist;
 		int64_t y_result = ((int64_t)dy * scaled_dist) / (int64_t)dist;
 
-		// Clamp for corner positions where dist > AXIS_MAX_VALUE (square-range
-		// stick pushed into its diagonal corners).
 		if (x_result > AXIS_MAX_VALUE) x_result = AXIS_MAX_VALUE;
 		else if (x_result < AXIS_MIN_VALUE) x_result = AXIS_MIN_VALUE;
 		if (y_result > AXIS_MAX_VALUE) y_result = AXIS_MAX_VALUE;
@@ -738,19 +794,11 @@ void AxesProcess (dev_config_t * p_dev_config)
 
 	int32_t tmp[MAX_AXIS_NUM];
 	float tmpf;
-	uint8_t circular_processed[MAX_AXIS_NUM] = {0};  // Track axes processed with circular deadband
+	uint8_t circular_processed[MAX_AXIS_NUM] = {0};
 
-	// ============================================================
-	// Pass 1: read raw sensor values and filter every axis.
-	// This MUST complete before Pass 2 begins because circular
-	// deadband pairs read tmp[pair_idx] during their processing —
-	// that value must already be filtered and populated for every
-	// axis regardless of which index holds the circular flag.
-	// Combining both in a single loop (the prior design) left the
-	// paired axis's tmp[] as stale/undefined when the lower-indexed
-	// axis carried the circular flag, and overwrote the circular
-	// result with the raw-filtered value on the pair's own iteration.
-	// ============================================================
+	// Pass 1: raw read + filter for every axis. Must complete before
+	// Pass 2 so circular-deadband pairs can safely cross-reference
+	// tmp[pair_idx] regardless of iteration order.
 	for (uint8_t i=0; i<MAX_AXIS_NUM; i++)
 	{
 
@@ -843,27 +891,36 @@ void AxesProcess (dev_config_t * p_dev_config)
 		tmp[i] = Filter(raw_axis_data[i], filter_buffer[i], p_dev_config->axis_config[i].filter);
 	}
 
-	// ============================================================
-	// Pass 2: deadband, shaping, resolution, inversion, prescaling,
-	// and the per-axis button/trim/centering section. tmp[] now holds
-	// filtered values for all axes, so circular deadband can freely
-	// cross-reference the paired axis and iteration order no longer
-	// matters. circular_processed[] still gates double-processing
-	// when both axes of a pair have the circular flag set.
-	// ============================================================
+	// Pass 2: deadband, shape, resolution, invert, prescale, buttons/trim.
 	for (uint8_t i=0; i<MAX_AXIS_NUM; i++)
 	{
-
-		// Deadband processing and scaling
 		if (p_dev_config->axis_config[i].is_circular_deadband && !circular_processed[i])
 		{
-			// CIRCULAR DEADBAND MODE
 			uint8_t pair_idx = p_dev_config->axis_config[i].circular_pair_axis;
 
-			// Only process if paired axis is valid and not yet processed
 			if (pair_idx < MAX_AXIS_NUM && pair_idx != i && !circular_processed[pair_idx])
 			{
 				int32_t x_scaled, y_scaled;
+
+				// Hysteresis compensation pre-shifts tmp[i] so the captured
+				// rest maps to calib_center before circular deadband runs.
+				uint32_t snap_now = GetMillis();
+				if (p_dev_config->axis_config[i].hysteresis_compensation)
+				{
+					ApplyHysteresisCompensation(p_dev_config, i, tmp, snap_now);
+				}
+				else
+				{
+					center_snap_active[i] = 0;
+				}
+				if (p_dev_config->axis_config[pair_idx].hysteresis_compensation)
+				{
+					ApplyHysteresisCompensation(p_dev_config, pair_idx, tmp, snap_now);
+				}
+				else
+				{
+					center_snap_active[pair_idx] = 0;
+				}
 
 				// First scale both axes to output range WITHOUT deadband (deadband_size=0)
 				int32_t x_value = map3(tmp[i],
@@ -899,6 +956,24 @@ void AxesProcess (dev_config_t * p_dev_config)
 				tmp[i] = AXIS_CENTER_VALUE + x_scaled;
 				tmp[pair_idx] = AXIS_CENTER_VALUE + y_scaled;
 
+				// DJR pass applied per axis after circular scaling.
+				if (p_dev_config->axis_config[i].is_dynamic_deadband)
+				{
+					if (iabs(tmp[i] - scaled_axis_data[i]) < 3*3*p_dev_config->axis_config[i].deadband_size &&
+							IsDynamicDeadbandHolding(tmp[i], deadband_buffer[i], p_dev_config->axis_config[i].deadband_size))
+					{
+						tmp[i] = scaled_axis_data[i];
+					}
+				}
+				if (p_dev_config->axis_config[pair_idx].is_dynamic_deadband)
+				{
+					if (iabs(tmp[pair_idx] - scaled_axis_data[pair_idx]) < 3*3*p_dev_config->axis_config[pair_idx].deadband_size &&
+							IsDynamicDeadbandHolding(tmp[pair_idx], deadband_buffer[pair_idx], p_dev_config->axis_config[pair_idx].deadband_size))
+					{
+						tmp[pair_idx] = scaled_axis_data[pair_idx];
+					}
+				}
+
 				// Mark both axes as processed
 				circular_processed[i] = 1;
 				circular_processed[pair_idx] = 1;
@@ -918,7 +993,20 @@ void AxesProcess (dev_config_t * p_dev_config)
 		}
 		else if (!circular_processed[i])
 		{
-			// RECTANGULAR DEADBAND MODE (existing behavior)
+			// When hysteresis_compensation is on, the snap subsumes
+			// rectangular deadband (map3 receives deadband_size=0).
+			uint8_t eff_deadband = p_dev_config->axis_config[i].deadband_size;
+
+			if (p_dev_config->axis_config[i].hysteresis_compensation)
+			{
+				ApplyHysteresisCompensation(p_dev_config, i, tmp, GetMillis());
+				eff_deadband = 0;
+			}
+			else
+			{
+				center_snap_active[i] = 0;
+			}
+
 			if (!p_dev_config->axis_config[i].is_dynamic_deadband)
 			{
 				// Scale output data
@@ -929,7 +1017,7 @@ void AxesProcess (dev_config_t * p_dev_config)
 										 AXIS_MIN_VALUE,
 										 AXIS_CENTER_VALUE,
 										 AXIS_MAX_VALUE,
-										 p_dev_config->axis_config[i].deadband_size);
+										 eff_deadband);
 			}
 			else
 			{
@@ -941,7 +1029,7 @@ void AxesProcess (dev_config_t * p_dev_config)
 										 AXIS_MIN_VALUE,
 										 AXIS_CENTER_VALUE,
 										 AXIS_MAX_VALUE,
-										 p_dev_config->axis_config[i].deadband_size);  // <-- restoring Deadband in addition to dynamic deadband
+										 eff_deadband);
 
 				if (iabs(tmp[i] - scaled_axis_data[i]) < 3*3*p_dev_config->axis_config[i].deadband_size &&			// 3*3*deadband_size = 3 sigma
 						IsDynamicDeadbandHolding(tmp[i], deadband_buffer[i], p_dev_config->axis_config[i].deadband_size))
